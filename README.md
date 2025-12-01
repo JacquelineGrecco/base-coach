@@ -2,9 +2,9 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# ⚽ FutsalPro Coach
+# ⚽ BaseCoach
 
-A modern, AI-powered futsal coaching evaluation app designed to help coaches quickly assess players during training sessions and generate professional reports.
+A modern, AI-powered youth sports evaluation platform designed to help coaches quickly assess players during training sessions and generate professional reports. Starting with futsal and expanding to all sports.
 
 ## 🎯 What It Does
 
@@ -40,11 +40,12 @@ A modern, AI-powered futsal coaching evaluation app designed to help coaches qui
 
 ## 📚 Documentation
 
-- **[QUICK_START.md](./QUICK_START.md)** - Fast overview of features and changes
-- **[TESTING_GUIDE.md](./TESTING_GUIDE.md)** - Complete testing instructions
-- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - Technical details and architecture
-- **[CHANGELOG.md](./CHANGELOG.md)** - Version history and changes
-- **[ROADMAP.md](./ROADMAP.md)** - 🗺️ **Future features and product roadmap**
+- **[docs/QUICK_START.md](./docs/QUICK_START.md)** - Fast overview of features and changes
+- **[docs/TESTING_GUIDE.md](./docs/TESTING_GUIDE.md)** - Complete testing instructions
+- **[docs/IMPLEMENTATION_SUMMARY.md](./docs/IMPLEMENTATION_SUMMARY.md)** - Technical details and architecture
+- **[docs/CHANGELOG.md](./docs/CHANGELOG.md)** - Version history and changes
+- **[docs/ROADMAP.md](./docs/ROADMAP.md)** - 🗺️ **Future features and product roadmap**
+- **[docs/DEPLOYMENT_GUIDE.md](./docs/DEPLOYMENT_GUIDE.md)** - How to deploy to Vercel
 
 ## 🎯 Key Features (v1.0)
 
@@ -89,7 +90,7 @@ A modern, AI-powered futsal coaching evaluation app designed to help coaches qui
 
 ## 🗺️ Roadmap
 
-See **[ROADMAP.md](./ROADMAP.md)** for detailed future plans including:
+See **[docs/ROADMAP.md](./docs/ROADMAP.md)** for detailed future plans including:
 
 ### Phase 1 (v1.5) - Q1 2026
 - Session history & progress tracking
@@ -129,7 +130,11 @@ See **[ROADMAP.md](./ROADMAP.md)** for detailed future plans including:
 
 ## 🤝 Contributing
 
-This is a private project developed for Fernanda's futsal coaching business. For feature requests or feedback, please reach out directly.
+This is a private project. For feature requests or feedback, please reach out directly.
+
+## 🌐 Live Demo
+
+**Deployed App:** Check Vercel deployment for the latest live version.
 
 ## 📄 License
 
