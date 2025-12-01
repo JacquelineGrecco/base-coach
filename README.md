@@ -19,15 +19,16 @@ A modern, AI-powered youth sports evaluation platform designed to help coaches q
 
 **Prerequisites:** Node.js 18+
 
+### For Demo/Testing (v1.0 - No Database):
 1. **Install dependencies:**
    ```bash
    npm install
    ```
 
 2. **Set up environment variables:**
-   Create a `.env.local` file:
    ```bash
-   GEMINI_API_KEY=your_gemini_api_key_here
+   cp .env.example .env.local
+   # Add your Gemini API key to .env.local
    ```
 
 3. **Run the app:**
@@ -38,14 +39,21 @@ A modern, AI-powered youth sports evaluation platform designed to help coaches q
 4. **Open in browser:**
    Navigate to `http://localhost:3000`
 
+### For Production (v1.1+ - With Database):
+Follow the **[Supabase Setup Guide](./docs/SUPABASE_SETUP.md)** for complete database configuration.
+
 ## 📚 Documentation
 
+### Getting Started
 - **[docs/QUICK_START.md](./docs/QUICK_START.md)** - Fast overview of features and changes
+- **[docs/SUPABASE_SETUP.md](./docs/SUPABASE_SETUP.md)** - 🗄️ **Database setup guide**
+- **[docs/DEPLOYMENT_GUIDE.md](./docs/DEPLOYMENT_GUIDE.md)** - How to deploy to Vercel
+
+### Development
 - **[docs/TESTING_GUIDE.md](./docs/TESTING_GUIDE.md)** - Complete testing instructions
 - **[docs/IMPLEMENTATION_SUMMARY.md](./docs/IMPLEMENTATION_SUMMARY.md)** - Technical details and architecture
-- **[docs/CHANGELOG.md](./docs/CHANGELOG.md)** - Version history and changes
 - **[docs/ROADMAP.md](./docs/ROADMAP.md)** - 🗺️ **Future features and product roadmap**
-- **[docs/DEPLOYMENT_GUIDE.md](./docs/DEPLOYMENT_GUIDE.md)** - How to deploy to Vercel
+- **[docs/CHANGELOG.md](./docs/CHANGELOG.md)** - Version history and changes
 
 ## 🎯 Key Features (v1.0)
 
