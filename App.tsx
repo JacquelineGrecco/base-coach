@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/Auth/AuthPage';
 import { ResetPassword } from './components/Auth/ResetPassword';
+import { EmailVerificationRequired } from './components/EmailVerificationRequired';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import SessionSetup from './components/SessionSetup';
@@ -109,6 +110,14 @@ function AppContent() {
   // Show auth page if user is not logged in
   if (!user) {
     return <AuthPage />;
+  }
+
+  // Check if email is verified
+  // @ts-ignore - email_confirmed_at exists on user object
+  const emailConfirmed = user.email_confirmed_at || user.confirmed_at;
+  
+  if (!emailConfirmed) {
+    return <EmailVerificationRequired email={user.email || ''} />;
   }
 
   // If in active session, don't show standard layout (sidebar)

@@ -8,6 +8,8 @@ export interface UserProfile {
   email: string;
   name: string;
   phone?: string;
+  bio?: string;
+  profile_picture_url?: string;
   user_type: UserType;
   plan_type?: PlanType;
   created_at: string;
@@ -44,7 +46,14 @@ export const userService = {
    */
   async updateProfile(
     userId: string, 
-    updates: { name?: string; phone?: string; email?: string; user_type?: UserType }
+    updates: { 
+      name?: string; 
+      phone?: string; 
+      email?: string; 
+      bio?: string;
+      profile_picture_url?: string;
+      user_type?: UserType;
+    }
   ): Promise<{ error: Error | null }> {
     try {
       const { error } = await supabase
@@ -173,6 +182,222 @@ export const userService = {
     } catch (error) {
       console.error('Change password error:', error);
       return { error: error as Error };
+    }
+  },
+
+  /**
+   * Resize image to max dimensions while maintaining aspect ratio
+   */
+  async resizeImage(file: File, maxWidth: number = 800, maxHeight: number = 800): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Calculate new dimensions
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Could not create blob'));
+                return;
+              }
+              const resizedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(resizedFile);
+            },
+            'image/jpeg',
+            0.9 // Quality
+          );
+        };
+        img.onerror = () => reject(new Error('Could not load image'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.readAsDataURL(file);
+    });
+  },
+
+  /**
+   * Upload profile picture to Supabase Storage
+   */
+  async uploadProfilePicture(
+    userId: string,
+    file: File
+  ): Promise<{ url: string | null; error: Error | null }> {
+    try {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('O arquivo deve ser uma imagem');
+      }
+
+      // Resize image if too large
+      let fileToUpload = file;
+      if (file.size > 2 * 1024 * 1024) {
+        console.log('Resizing image...');
+        fileToUpload = await this.resizeImage(file);
+        
+        // Check size again after resize
+        if (fileToUpload.size > 2 * 1024 * 1024) {
+          throw new Error('A imagem ainda é muito grande após redimensionar. Tente uma imagem menor.');
+        }
+      }
+
+      // Generate unique filename
+      const fileName = `${userId}-${Date.now()}.jpg`;
+      const filePath = `${userId}/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, fileToUpload, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
+
+      // Update user profile with new picture URL
+      const { error: updateError } = await this.updateProfile(userId, {
+        profile_picture_url: publicUrl,
+      });
+
+      if (updateError) throw updateError;
+
+      return { url: publicUrl, error: null };
+    } catch (error) {
+      console.error('Upload profile picture error:', error);
+      return { url: null, error: error as Error };
+    }
+  },
+
+  /**
+   * Delete profile picture
+   */
+  async deleteProfilePicture(userId: string, pictureUrl: string): Promise<{ error: Error | null }> {
+    try {
+      // First, remove URL from profile (set to null)
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          profile_picture_url: null,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', userId);
+
+      if (updateError) throw updateError;
+
+      // Then delete from storage
+      const urlParts = pictureUrl.split('/avatars/');
+      if (urlParts.length >= 2) {
+        const filePath = urlParts[1];
+        const { error: deleteError } = await supabase.storage
+          .from('avatars')
+          .remove([filePath]);
+
+        // Don't throw error if file doesn't exist in storage
+        if (deleteError && !deleteError.message.includes('not found')) {
+          console.error('Storage delete error:', deleteError);
+        }
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Delete profile picture error:', error);
+      return { error: error as Error };
+    }
+  },
+
+  /**
+   * Export all user data (GDPR compliance)
+   */
+  async exportUserData(userId: string): Promise<{ data: any | null; error: Error | null }> {
+    try {
+      // Get user profile
+      const { profile } = await this.getUserProfile(userId);
+
+      // Get all teams
+      const { data: teams } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('user_id', userId);
+
+      // Get all players
+      const { data: players } = await supabase
+        .from('players')
+        .select('*, team:teams!inner(name)')
+        .eq('teams.user_id', userId);
+
+      // Get all sessions
+      const { data: sessions } = await supabase
+        .from('sessions')
+        .select('*, team:teams!inner(name)')
+        .eq('teams.user_id', userId);
+
+      // Get all evaluations
+      const { data: evaluations } = await supabase
+        .from('evaluations')
+        .select(`
+          *,
+          session:sessions!inner(date, team:teams!inner(name)),
+          player:players!inner(name)
+        `)
+        .eq('sessions.teams.user_id', userId);
+
+      const exportData = {
+        export_date: new Date().toISOString(),
+        profile: profile,
+        teams: teams || [],
+        players: players || [],
+        sessions: sessions || [],
+        evaluations: evaluations || [],
+        total_records: {
+          teams: teams?.length || 0,
+          players: players?.length || 0,
+          sessions: sessions?.length || 0,
+          evaluations: evaluations?.length || 0,
+        }
+      };
+
+      return { data: exportData, error: null };
+    } catch (error) {
+      console.error('Export user data error:', error);
+      return { data: null, error: error as Error };
     }
   },
 };

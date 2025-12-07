@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { User, Lock, CreditCard, Trash2, AlertCircle, CheckCircle, Mail, Phone, Save } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Lock, CreditCard, Trash2, AlertCircle, CheckCircle, Mail, Phone, Save, Camera, Download, FileText, ZoomIn, ZoomOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { userService, UserProfile } from '../services/userService';
 
@@ -11,13 +11,28 @@ const Profile: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Image preview and crop
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const imageRef = useRef<HTMLImageElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Personal info form
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [bio, setBio] = useState('');
 
   // Password change
   const [newPassword, setNewPassword] = useState('');
@@ -55,6 +70,7 @@ const Profile: React.FC = () => {
       setName(userProfile.name);
       setEmail(userProfile.email);
       setPhone(userProfile.phone || '');
+      setBio(userProfile.bio || '');
     }
     
     setLoading(false);
@@ -72,6 +88,7 @@ const Profile: React.FC = () => {
       name,
       email,
       phone: phone || undefined,
+      bio: bio || undefined,
     });
 
     if (error) {
@@ -152,6 +169,223 @@ const Profile: React.FC = () => {
     }
   }
 
+  async function handleProfilePictureChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files || !e.target.files[0]) return;
+
+    const file = e.target.files[0];
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('O arquivo deve ser uma imagem');
+      return;
+    }
+
+    setError('');
+    setSelectedFile(file);
+    
+    // Reset crop settings
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+      setShowImageModal(true);
+    };
+    reader.readAsDataURL(file);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }
+
+  function handleMouseDown(e: React.MouseEvent) {
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  }
+
+  function handleMouseMove(e: React.MouseEvent) {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    });
+  }
+
+  function handleMouseUp() {
+    setIsDragging(false);
+  }
+
+  async function getCroppedImage(): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const canvas = canvasRef.current;
+      const image = imageRef.current;
+
+      if (!canvas || !image) {
+        reject(new Error('Canvas or image not found'));
+        return;
+      }
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+
+      // Set canvas size to desired output (400x400 for profile pics)
+      const size = 400;
+      canvas.width = size;
+      canvas.height = size;
+
+      // Calculate crop area
+      const cropSize = 300; // Size of the crop area on screen
+      const scale = image.naturalWidth / image.width;
+      
+      // Source dimensions (from original image)
+      const sourceSize = cropSize * scale / zoom;
+      const sourceX = (image.naturalWidth / 2 - sourceSize / 2) - (position.x * scale / zoom);
+      const sourceY = (image.naturalHeight / 2 - sourceSize / 2) - (position.y * scale / zoom);
+
+      // Draw circular crop
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+
+      // Draw image
+      ctx.drawImage(
+        image,
+        sourceX,
+        sourceY,
+        sourceSize,
+        sourceSize,
+        0,
+        0,
+        size,
+        size
+      );
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Could not create blob'));
+            return;
+          }
+          const croppedFile = new File([blob], selectedFile?.name || 'avatar.jpg', {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+          });
+          resolve(croppedFile);
+        },
+        'image/jpeg',
+        0.95
+      );
+    });
+  }
+
+  async function handleConfirmUpload() {
+    if (!user || !selectedFile) return;
+
+    setError('');
+    setSuccess('');
+    setUploading(true);
+    setShowImageModal(false);
+
+    try {
+      // Get cropped image
+      const croppedFile = await getCroppedImage();
+      
+      // Upload cropped image
+      const { url, error } = await userService.uploadProfilePicture(user.id, croppedFile);
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setSuccess('Foto atualizada com sucesso!');
+        loadProfile(); // Reload to show new picture
+      }
+    } catch (error) {
+      setError('Erro ao processar imagem');
+      console.error(error);
+    }
+
+    setUploading(false);
+    setImagePreview(null);
+    setSelectedFile(null);
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  }
+
+  function handleCancelUpload() {
+    setShowImageModal(false);
+    setImagePreview(null);
+    setSelectedFile(null);
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  }
+
+  async function handleDeleteProfilePicture() {
+    if (!user || !profile?.profile_picture_url) return;
+
+    setError('');
+    setSuccess('');
+    setUploading(true);
+
+    const { error } = await userService.deleteProfilePicture(user.id, profile.profile_picture_url);
+
+    if (error) {
+      setError(error.message);
+      setUploading(false);
+    } else {
+      setSuccess('Foto removida com sucesso!');
+      // Update profile state immediately to show initials
+      setProfile({ ...profile, profile_picture_url: undefined });
+      // Also reload from database
+      await loadProfile();
+      setUploading(false);
+    }
+  }
+
+  async function handleExportData() {
+    if (!user) return;
+
+    setError('');
+    setExporting(true);
+
+    const { data, error } = await userService.exportUserData(user.id);
+
+    if (error) {
+      setError('Erro ao exportar dados: ' + error.message);
+      setExporting(false);
+      return;
+    }
+
+    // Create downloadable JSON file
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `basecoach-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setSuccess('Dados exportados com sucesso!');
+    setExporting(false);
+  }
+
+  function getInitials(name: string): string {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -182,18 +416,7 @@ const Profile: React.FC = () => {
     <div className="max-w-4xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold text-gray-900">Configurações</h1>
-          {profile && (
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-              profile.user_type === 'coach' 
-                ? 'bg-emerald-100 text-emerald-800' 
-                : 'bg-blue-100 text-blue-800'
-            }`}>
-              {profile.user_type === 'coach' ? '🏆 Treinador' : '⚽ Atleta'}
-            </span>
-          )}
-        </div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Configurações</h1>
         <p className="text-gray-600">Gerencie seu perfil e preferências</p>
       </div>
 
@@ -224,6 +447,91 @@ const Profile: React.FC = () => {
         {activeTab === 'personal' && (
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Informações Pessoais</h2>
+            
+            {/* Profile Picture Section */}
+            <div className="mb-8 flex flex-col items-center">
+              <div className="relative">
+                {profile?.profile_picture_url ? (
+                  <img
+                    src={profile.profile_picture_url}
+                    alt={profile.name}
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setImagePreview(profile.profile_picture_url || null);
+                      setShowImageModal(true);
+                    }}
+                    className="w-32 h-32 rounded-full object-cover border-4 border-emerald-100 cursor-pointer hover:opacity-90 transition-opacity"
+                    title="Clique para ver em tamanho maior"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-emerald-600 flex items-center justify-center border-4 border-emerald-100">
+                    <span className="text-4xl font-bold text-white">
+                      {profile ? getInitials(profile.name) : '?'}
+                    </span>
+                  </div>
+                )}
+                
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="absolute bottom-0 right-0 bg-emerald-600 text-white p-2 rounded-full shadow-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleProfilePictureChange}
+                className="hidden"
+              />
+
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium disabled:opacity-50"
+                >
+                  {uploading ? 'Enviando...' : 'Alterar foto'}
+                </button>
+                {profile?.profile_picture_url && (
+                  <>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      type="button"
+                      onClick={handleDeleteProfilePicture}
+                      disabled={uploading}
+                      className="text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+                    >
+                      Remover
+                    </button>
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                JPG, PNG ou WEBP. Máximo 2MB.
+              </p>
+            </div>
+
+            {/* Export Data Button */}
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={handleExportData}
+                disabled={exporting}
+                className="flex items-center gap-2 text-gray-700 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              >
+                <Download className="w-4 h-4" />
+                {exporting ? 'Exportando...' : 'Exportar Meus Dados'}
+              </button>
+              <p className="text-xs text-gray-500 mt-1">
+                Baixe todos os seus dados em formato JSON
+              </p>
+            </div>
             
             <form onSubmit={handleUpdatePersonalInfo} className="space-y-4 mb-8">
               {/* Name */}
@@ -280,6 +588,27 @@ const Profile: React.FC = () => {
                     placeholder="(00) 00000-0000"
                   />
                 </div>
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sobre você (opcional)
+                </label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    maxLength={500}
+                    rows={4}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                    placeholder="Ex: Treinador de futsal com 10 anos de experiência, certificado pela CBF..."
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {bio.length}/500 caracteres
+                </p>
               </div>
 
               <button
@@ -490,6 +819,157 @@ const Profile: React.FC = () => {
         )}
 
       </div>
+
+      {/* Image Preview/View Modal */}
+      {showImageModal && imagePreview && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => selectedFile ? handleCancelUpload() : setShowImageModal(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {selectedFile ? 'Confirmar Upload' : 'Visualizar Foto'}
+              </h3>
+              <button
+                onClick={() => selectedFile ? handleCancelUpload() : setShowImageModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Image Preview */}
+            <div className="p-6 flex flex-col items-center">
+              {selectedFile ? (
+                <>
+                  {/* Crop Area */}
+                  <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ width: '400px', height: '400px' }}>
+                    <div
+                      className="absolute inset-0 flex items-center justify-center cursor-move"
+                      onMouseDown={handleMouseDown}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUp}
+                      onMouseLeave={handleMouseUp}
+                    >
+                      <img
+                        ref={imageRef}
+                        src={imagePreview || ''}
+                        alt="Preview"
+                        className="max-w-none"
+                        style={{
+                          transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
+                          cursor: isDragging ? 'grabbing' : 'grab',
+                        }}
+                        draggable={false}
+                      />
+                    </div>
+                    
+                    {/* Circular Crop Overlay */}
+                    <div className="absolute inset-0 pointer-events-none">
+                      <svg width="100%" height="100%" viewBox="0 0 400 400">
+                        <defs>
+                          <mask id="cropMask">
+                            <rect width="400" height="400" fill="white" />
+                            <circle cx="200" cy="200" r="150" fill="black" />
+                          </mask>
+                        </defs>
+                        <rect width="400" height="400" fill="black" opacity="0.5" mask="url(#cropMask)" />
+                        <circle cx="200" cy="200" r="150" fill="none" stroke="white" strokeWidth="2" strokeDasharray="5,5" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Zoom Controls */}
+                  <div className="mt-4 flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
+                      className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                      title="Diminuir zoom"
+                    >
+                      <ZoomOut className="w-5 h-5" />
+                    </button>
+                    
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="3"
+                      step="0.1"
+                      value={zoom}
+                      onChange={(e) => setZoom(parseFloat(e.target.value))}
+                      className="w-48"
+                    />
+                    
+                    <button
+                      type="button"
+                      onClick={() => setZoom(Math.min(3, zoom + 0.1))}
+                      className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                      title="Aumentar zoom"
+                    >
+                      <ZoomIn className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="mt-3 text-sm text-gray-600 text-center">
+                    <p className="font-medium">{selectedFile.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Arraste para posicionar • Use o zoom para ajustar
+                    </p>
+                  </div>
+
+                  {/* Hidden canvas for cropping */}
+                  <canvas ref={canvasRef} className="hidden" />
+                </>
+              ) : imagePreview ? (
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-lg"
+                />
+              ) : (
+                <div className="text-gray-500 p-8">
+                  Imagem não encontrada
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            {selectedFile ? (
+              <div className="flex gap-3 p-4 border-t bg-gray-50">
+                <button
+                  onClick={handleCancelUpload}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmUpload}
+                  disabled={uploading}
+                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                >
+                  {uploading ? 'Enviando...' : 'Confirmar Upload'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-3 p-4 border-t bg-gray-50">
+                <button
+                  onClick={() => setShowImageModal(false)}
+                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
