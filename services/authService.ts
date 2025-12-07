@@ -14,28 +14,25 @@ export interface AuthUser {
 export const authService = {
   /**
    * Sign up a new user
+   * Note: User profile is automatically created via database trigger
    */
-  async signUp(email: string, password: string, name: string): Promise<{ user: User | null; error: Error | null }> {
+  async signUp(email: string, password: string, name: string, userType: 'coach' | 'player' = 'coach'): Promise<{ user: User | null; error: Error | null }> {
     try {
-      // 1. Create auth user
+      // Create auth user with metadata
+      // The database trigger will automatically create the user profile
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            name: name,
+            user_type: userType, // Store user type in metadata
+          },
+        },
       });
 
       if (authError) throw authError;
       if (!authData.user) throw new Error('User creation failed');
-
-      // 2. Create user profile in users table
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          email: authData.user.email!,
-          name,
-        });
-
-      if (profileError) throw profileError;
 
       return { user: authData.user, error: null };
     } catch (error) {

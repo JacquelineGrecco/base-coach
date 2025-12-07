@@ -1,15 +1,31 @@
 import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthPage } from './components/Auth/AuthPage';
+import { ResetPassword } from './components/Auth/ResetPassword';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import SessionSetup from './components/SessionSetup';
 import ActiveSession from './components/ActiveSession';
 import DrillLibrary from './components/DrillLibrary';
 import Reports from './components/Reports';
+import Profile from './components/Profile';
 import { MOCK_TEAMS } from './constants';
 import { ViewState, Evaluation } from './types';
 
-const App: React.FC = () => {
+function AppContent() {
+  const { user, loading } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>("DASHBOARD");
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+
+  // Check if we're in password recovery mode
+  React.useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
+    
+    if (type === 'recovery') {
+      setIsRecoveryMode(true);
+    }
+  }, []);
   // In a real app, this would be in a context or global state
   const [activeTeam] = useState(MOCK_TEAMS[0]);
   const [sessionEvaluations, setSessionEvaluations] = useState<Evaluation[]>([]);
@@ -57,10 +73,43 @@ const App: React.FC = () => {
         return <DrillLibrary />;
       case "REPORTS":
         return <Reports team={activeTeam} evaluations={sessionEvaluations} />;
+      case "PROFILE":
+        return <Profile />;
       default:
         return <Dashboard teams={MOCK_TEAMS} onStartSession={handleStartSessionSetup} />;
     }
   };
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show reset password page if in recovery mode (even if logged in)
+  if (isRecoveryMode && user) {
+    return (
+      <ResetPassword
+        onSuccess={() => {
+          setIsRecoveryMode(false);
+          // Clear the hash from URL
+          window.location.hash = '';
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
+  // Show auth page if user is not logged in
+  if (!user) {
+    return <AuthPage />;
+  }
 
   // If in active session, don't show standard layout (sidebar)
   if (currentView === "ACTIVE_SESSION") {
@@ -75,6 +124,15 @@ const App: React.FC = () => {
     <Layout currentView={currentView} onChangeView={setCurrentView}>
       {renderView()}
     </Layout>
+  );
+}
+
+// Wrap the app with AuthProvider
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 

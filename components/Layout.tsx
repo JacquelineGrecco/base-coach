@@ -1,6 +1,7 @@
 import React from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu, Settings } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   currentView: ViewState;
@@ -9,7 +10,12 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) => {
+  const { signOut, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   const NavItem = ({ view, icon: Icon, label }: { view: ViewState; icon: any; label: string }) => (
     <button
@@ -34,9 +40,12 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white border-r border-slate-800">
         <div className="p-6 border-b border-slate-800">
             <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-lg">F</div>
-                <span className="text-xl font-bold tracking-tight">FutsalPro</span>
+                <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center font-bold text-lg">B</div>
+                <span className="text-xl font-bold tracking-tight">BaseCoach</span>
             </div>
+            {user && (
+              <p className="text-xs text-slate-400 mt-2 truncate">{user.email}</p>
+            )}
         </div>
         
         <nav className="flex-1 p-4 space-y-2">
@@ -44,12 +53,16 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
             <NavItem view="ACTIVE_SESSION" icon={PlayCircle} label="Live Session" />
             <NavItem view="DRILLS" icon={BookOpen} label="Drill Library" />
             <NavItem view="REPORTS" icon={BarChart2} label="Reports" />
+            <NavItem view="PROFILE" icon={Settings} label="Configurações" />
         </nav>
 
         <div className="p-4 border-t border-slate-800">
-            <button className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white transition-colors">
+            <button 
+              onClick={handleSignOut}
+              className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            >
                 <LogOut className="w-5 h-5" />
-                <span>Sign Out</span>
+                <span>Sair</span>
             </button>
         </div>
       </aside>
@@ -59,8 +72,8 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
         {/* Mobile Header */}
         <header className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center shadow-md z-20">
              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-lg">F</div>
-                <span className="text-xl font-bold">FutsalPro</span>
+                <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center font-bold text-lg">B</div>
+                <span className="text-xl font-bold">BaseCoach</span>
             </div>
             <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                 <Menu className="w-6 h-6" />
@@ -79,6 +92,16 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
                 <NavItem view="ACTIVE_SESSION" icon={PlayCircle} label="Live Session" />
                 <NavItem view="DRILLS" icon={BookOpen} label="Drill Library" />
                 <NavItem view="REPORTS" icon={BarChart2} label="Reports" />
+                <NavItem view="PROFILE" icon={Settings} label="Configurações" />
+                <div className="pt-4 mt-auto">
+                  <button 
+                    onClick={handleSignOut}
+                    className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span>Sair</span>
+                  </button>
+                </div>
             </div>
         )}
 

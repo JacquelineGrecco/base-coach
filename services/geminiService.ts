@@ -1,10 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Drill } from "../types";
 
-// Initialize Gemini Client
+// Initialize Gemini Client (lazy initialization)
 // NOTE: In a real production app, calls should go through a backend to protect the API Key.
-// For this frontend-only demo, we access process.env directly.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let ai: GoogleGenAI | null = null;
+
+function getGeminiClient(): GoogleGenAI {
+  if (!ai) {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'your-gemini-api-key-here') {
+      throw new Error('Gemini API key not configured. Please add VITE_GEMINI_API_KEY to .env.local');
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+}
 
 export const generateDrillSuggestions = async (
   focusArea: string, 
@@ -19,7 +29,8 @@ export const generateDrillSuggestions = async (
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const client = getGeminiClient();
+    const response = await client.models.generateContent({
       model: model,
       contents: prompt,
       config: {
@@ -67,7 +78,8 @@ export const generateDrillSuggestions = async (
 
 export const analyzePlayerStats = async (playerName: string, statsSummary: string): Promise<string> => {
     try {
-         const response = await ai.models.generateContent({
+         const client = getGeminiClient();
+         const response = await client.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: `Act as a professional futsal coach. Analyze the following stats for player ${playerName} and give a concise, constructive 3-sentence feedback summary on what they need to improve.\n\nStats: ${statsSummary}`,
          });
