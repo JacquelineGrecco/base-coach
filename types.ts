@@ -68,4 +68,4 @@ export interface Drill {
   isAiGenerated?: boolean;
 }
 
-export type ViewState = "DASHBOARD" | "SESSION_SETUP" | "ACTIVE_SESSION" | "REPORTS" | "DRILLS" | "PROFILE";
+export type ViewState = "DASHBOARD" | "SESSION_SETUP" | "ACTIVE_SESSION" | "REPORTS" | "DRILLS" | "PROFILE" | "TEAMS";

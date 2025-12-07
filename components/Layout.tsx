@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu, Settings } from 'lucide-react';
+import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu, Settings, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
@@ -50,6 +50,7 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
         
         <nav className="flex-1 p-4 space-y-2">
             <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
+            <NavItem view="TEAMS" icon={Users} label="Times" />
             <NavItem view="ACTIVE_SESSION" icon={PlayCircle} label="Live Session" />
             <NavItem view="DRILLS" icon={BookOpen} label="Drill Library" />
             <NavItem view="REPORTS" icon={BarChart2} label="Reports" />

@@ -10,6 +10,7 @@ import ActiveSession from './components/ActiveSession';
 import DrillLibrary from './components/DrillLibrary';
 import Reports from './components/Reports';
 import Profile from './components/Profile';
+import TeamsContainer from './components/Teams/TeamsContainer';
 import { MOCK_TEAMS } from './constants';
 import { ViewState, Evaluation } from './types';
 
@@ -76,6 +77,8 @@ function AppContent() {
         return <Reports team={activeTeam} evaluations={sessionEvaluations} />;
       case "PROFILE":
         return <Profile />;
+      case "TEAMS":
+        return <TeamsContainer />;
       default:
         return <Dashboard teams={MOCK_TEAMS} onStartSession={handleStartSessionSetup} />;
     }
