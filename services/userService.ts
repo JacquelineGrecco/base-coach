@@ -61,7 +61,7 @@ export const userService = {
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('id', userId);
 
       if (error) throw error;
@@ -94,7 +94,7 @@ export const userService = {
         .update({
           plan_type: planType,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('id', userId);
 
       if (error) throw error;
@@ -317,7 +317,7 @@ export const userService = {
         .update({ 
           profile_picture_url: null,
           updated_at: new Date().toISOString() 
-        })
+        } as any)
         .eq('id', userId);
 
       if (updateError) throw updateError;
@@ -398,6 +398,133 @@ export const userService = {
     } catch (error) {
       console.error('Export user data error:', error);
       return { data: null, error: error as Error };
+    }
+  },
+
+  /**
+   * Convert data to CSV format
+   */
+  convertToCSV(data: any[], headers: string[]): string {
+    const csvRows = [];
+    
+    // Add header row
+    csvRows.push(headers.join(','));
+    
+    // Add data rows
+    for (const row of data) {
+      const values = headers.map(header => {
+        const value = row[header];
+        // Escape quotes and wrap in quotes if contains comma or quote
+        if (value === null || value === undefined) return '';
+        const escaped = String(value).replace(/"/g, '""');
+        return escaped.includes(',') || escaped.includes('"') ? `"${escaped}"` : escaped;
+      });
+      csvRows.push(values.join(','));
+    }
+    
+    return csvRows.join('\n');
+  },
+
+  /**
+   * Download CSV file
+   */
+  downloadCSV(csvContent: string, filename: string): void {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+
+  /**
+   * Export user data as CSV files (multiple files in a zip would be ideal, but for now separate downloads)
+   */
+  async exportUserDataAsCSV(userId: string): Promise<{ error: Error | null }> {
+    try {
+      const { data, error } = await this.exportUserData(userId);
+      
+      if (error || !data) {
+        throw error || new Error('Falha ao exportar dados');
+      }
+
+      const timestamp = new Date().toISOString().split('T')[0];
+
+      // Export Profile
+      if (data.profile) {
+        const profileCSV = this.convertToCSV(
+          [data.profile],
+          ['id', 'name', 'email', 'phone', 'bio', 'plan_type', 'created_at']
+        );
+        this.downloadCSV(profileCSV, `basecoach-perfil-${timestamp}.csv`);
+      }
+
+      // Export Teams
+      if (data.teams && data.teams.length > 0) {
+        const teamsCSV = this.convertToCSV(
+          data.teams,
+          ['name', 'sport', 'age_group', 'season', 'is_archived', 'created_at']
+        );
+        this.downloadCSV(teamsCSV, `basecoach-times-${timestamp}.csv`);
+      }
+
+      // Export Players
+      if (data.players && data.players.length > 0) {
+        const playersData = data.players.map((p: any) => ({
+          name: p.name,
+          team: p.team?.name || '',
+          position: p.position || '',
+          jersey_number: p.jersey_number || '',
+          birth_date: p.birth_date || '',
+          is_active: p.is_active ? 'Ativo' : 'Inativo',
+        }));
+        const playersCSV = this.convertToCSV(
+          playersData,
+          ['name', 'team', 'position', 'jersey_number', 'birth_date', 'is_active']
+        );
+        this.downloadCSV(playersCSV, `basecoach-atletas-${timestamp}.csv`);
+      }
+
+      // Export Sessions
+      if (data.sessions && data.sessions.length > 0) {
+        const sessionsData = data.sessions.map((s: any) => ({
+          team: s.team?.name || '',
+          date: s.date,
+          type: s.type || '',
+          duration_minutes: s.duration_minutes || '',
+          notes: s.notes || '',
+        }));
+        const sessionsCSV = this.convertToCSV(
+          sessionsData,
+          ['team', 'date', 'type', 'duration_minutes', 'notes']
+        );
+        this.downloadCSV(sessionsCSV, `basecoach-sessoes-${timestamp}.csv`);
+      }
+
+      // Export Evaluations
+      if (data.evaluations && data.evaluations.length > 0) {
+        const evaluationsData = data.evaluations.map((e: any) => ({
+          player: e.player?.name || '',
+          team: e.session?.team?.name || '',
+          date: e.session?.date || '',
+          valence: e.valence || '',
+          score: e.score || '',
+          notes: e.notes || '',
+        }));
+        const evaluationsCSV = this.convertToCSV(
+          evaluationsData,
+          ['player', 'team', 'date', 'valence', 'score', 'notes']
+        );
+        this.downloadCSV(evaluationsCSV, `basecoach-avaliacoes-${timestamp}.csv`);
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Export CSV error:', error);
+      return { error: error as Error };
     }
   },
 };

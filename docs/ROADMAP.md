@@ -22,9 +22,20 @@
 
 ---
 
-## 📋 Current Status (v1.0 MVP - ✅ Complete)
+## 📋 Current Status (v1.0 - ✅ Complete)
 
-### Completed Features:
+### ✅ Authentication & Profile (v1.0 - December 2025)
+- ✅ Email verification required
+- ✅ Profile picture upload with interactive cropper
+- ✅ Bio field for coaches (500 chars)
+- ✅ Export user data (JSON)
+- ✅ Show/hide password toggles
+- ✅ Remember me checkbox
+- ✅ Account deletion with cascade
+- ✅ Row Level Security (RLS) verified
+- ✅ Portuguese error messages
+
+### ✅ Session Evaluation (v0.8 - Previous)
 - ✅ Session setup with max 3 valence selection
 - ✅ Optimized active session with keyboard/swipe navigation
 - ✅ Individual player reports (200-300 characters)
@@ -34,7 +45,10 @@
 - ✅ Mobile-first responsive design
 - ✅ Portuguese localization
 
-**Current Capability:** Evaluate 23 players in ~30 minutes with professional report generation
+**Current Capability:** 
+- Secure authentication with email verification
+- Professional profile management
+- Evaluate 23 players in ~30 minutes with AI-powered reports
 
 ---
 

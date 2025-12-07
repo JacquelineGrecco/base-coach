@@ -13,6 +13,8 @@ const Profile: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('csv');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -348,33 +350,47 @@ const Profile: React.FC = () => {
     }
   }
 
-  async function handleExportData() {
+  async function handleConfirmExport() {
     if (!user) return;
 
     setError('');
     setExporting(true);
+    setShowExportModal(false);
 
-    const { data, error } = await userService.exportUserData(user.id);
+    if (exportFormat === 'json') {
+      const { data, error } = await userService.exportUserData(user.id);
 
-    if (error) {
-      setError('Erro ao exportar dados: ' + error.message);
+      if (error) {
+        setError('Erro ao exportar dados: ' + error.message);
+        setExporting(false);
+        return;
+      }
+
+      // Create downloadable JSON file
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `basecoach-data-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setSuccess('Dados exportados em JSON com sucesso!');
       setExporting(false);
-      return;
+    } else {
+      // CSV export
+      const { error } = await userService.exportUserDataAsCSV(user.id);
+
+      if (error) {
+        setError('Erro ao exportar dados: ' + error.message);
+      } else {
+        setSuccess('Dados exportados em CSV com sucesso! Verifique seus downloads.');
+      }
+
+      setExporting(false);
     }
-
-    // Create downloadable JSON file
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `basecoach-data-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    setSuccess('Dados exportados com sucesso!');
-    setExporting(false);
   }
 
   function getInitials(name: string): string {
@@ -521,7 +537,7 @@ const Profile: React.FC = () => {
             <div className="mb-6">
               <button
                 type="button"
-                onClick={handleExportData}
+                onClick={() => setShowExportModal(true)}
                 disabled={exporting}
                 className="flex items-center gap-2 text-gray-700 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
@@ -529,7 +545,7 @@ const Profile: React.FC = () => {
                 {exporting ? 'Exportando...' : 'Exportar Meus Dados'}
               </button>
               <p className="text-xs text-gray-500 mt-1">
-                Baixe todos os seus dados em formato JSON
+                Baixe todos os seus dados em formato JSON ou CSV
               </p>
             </div>
             
@@ -819,6 +835,116 @@ const Profile: React.FC = () => {
         )}
 
       </div>
+
+      {/* Export Format Selection Modal */}
+      {showExportModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowExportModal(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Exportar Dados
+              </h3>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Format Selection */}
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Escolha o formato para exportar seus dados:
+              </p>
+
+              <div className="space-y-3">
+                {/* CSV Option */}
+                <label
+                  className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    exportFormat === 'csv'
+                      ? 'border-emerald-600 bg-emerald-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="exportFormat"
+                    value="csv"
+                    checked={exportFormat === 'csv'}
+                    onChange={(e) => setExportFormat(e.target.value as 'json' | 'csv')}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileText className="w-5 h-5 text-emerald-600" />
+                      <span className="font-semibold text-gray-900">CSV (Recomendado)</span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Múltiplos arquivos separados: perfil, times, atletas, sessões e avaliações.
+                      Fácil de abrir no Excel ou Google Sheets.
+                    </p>
+                  </div>
+                </label>
+
+                {/* JSON Option */}
+                <label
+                  className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    exportFormat === 'json'
+                      ? 'border-emerald-600 bg-emerald-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="exportFormat"
+                    value="json"
+                    checked={exportFormat === 'json'}
+                    onChange={(e) => setExportFormat(e.target.value as 'json' | 'csv')}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Download className="w-5 h-5 text-gray-600" />
+                      <span className="font-semibold text-gray-900">JSON</span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Arquivo único com todos os dados em formato técnico.
+                      Ideal para desenvolvedores ou backup completo.
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex gap-3 p-4 border-t bg-gray-50">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmExport}
+                disabled={exporting}
+                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+              >
+                {exporting ? 'Exportando...' : 'Exportar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image Preview/View Modal */}
       {showImageModal && imagePreview && (
