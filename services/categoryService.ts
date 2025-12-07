@@ -6,6 +6,7 @@ export interface Category {
   name: string;
   age_group?: string;
   season?: string;
+  gender?: 'masculino' | 'feminino' | 'misto';
   notes?: string;
   is_active: boolean;
   created_at: string;
@@ -91,6 +92,7 @@ export const categoryService = {
       name: string;
       age_group?: string;
       season?: string;
+      gender?: 'masculino' | 'feminino' | 'misto';
       notes?: string;
     }
   ): Promise<{ category: Category | null; error: Error | null }> {
@@ -121,6 +123,7 @@ export const categoryService = {
       name?: string;
       age_group?: string;
       season?: string;
+      gender?: 'masculino' | 'feminino' | 'misto';
       notes?: string;
       is_active?: boolean;
     }

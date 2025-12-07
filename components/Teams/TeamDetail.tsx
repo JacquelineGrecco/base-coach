@@ -23,6 +23,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
     name: '',
     age_group: '',
     season: new Date().getFullYear().toString(),
+    gender: '' as 'masculino' | 'feminino' | 'misto' | '',
     notes: '',
   });
   const [creating, setCreating] = useState(false);
@@ -81,6 +82,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
         name: '',
         age_group: '',
         season: new Date().getFullYear().toString(),
+        gender: '',
         notes: '',
       });
       loadTeamData();
@@ -176,26 +178,29 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
         </div>
       )}
 
-      {/* Team-Level Players Card (Players without category) */}
-      {teamLevelPlayerCount > 0 && (
-        <div
-          onClick={() => onViewPlayers(null, `${team.name} - Sem Categoria`)}
-          className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-6 cursor-pointer hover:shadow-md transition-all"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Sem Categoria</h3>
-                <p className="text-sm text-gray-600">{teamLevelPlayerCount} atletas não atribuídos</p>
-              </div>
+      {/* Team-Level Players Card (Players without category) - Always show */}
+      <div
+        onClick={() => onViewPlayers(null, `${team.name} - Sem Categoria`)}
+        className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-6 cursor-pointer hover:shadow-md transition-all"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+              <Users className="w-6 h-6 text-white" />
             </div>
-            <ArrowLeft className="w-5 h-5 text-gray-400 rotate-180" />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Sem Categoria</h3>
+              <p className="text-sm text-gray-600">
+                {teamLevelPlayerCount === 0 
+                  ? 'Adicione atletas sem categoria específica'
+                  : `${teamLevelPlayerCount} ${teamLevelPlayerCount === 1 ? 'atleta' : 'atletas'}`
+                }
+              </p>
+            </div>
           </div>
+          <ArrowLeft className="w-5 h-5 text-gray-400 rotate-180" />
         </div>
-      )}
+      </div>
 
       {/* Categories Section */}
       <div className="mb-6 flex items-center justify-between">
@@ -360,6 +365,23 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Ex: 2025"
                 />
+              </div>
+
+              {/* Gender */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gênero
+                </label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="">Selecione...</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="feminino">Feminino</option>
+                  <option value="misto">Misto</option>
+                </select>
               </div>
 
               {/* Notes */}

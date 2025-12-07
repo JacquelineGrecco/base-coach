@@ -27,6 +27,8 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -39,6 +41,7 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
     notes: '',
   });
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     loadPlayers();
@@ -73,11 +76,91 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
     setLoading(false);
   }
 
+  async function validateJerseyNumber(jerseyNumber: string, excludePlayerId?: string): Promise<boolean> {
+    if (!jerseyNumber) return true; // Optional field
+
+    const number = parseInt(jerseyNumber);
+    if (isNaN(number) || number < 0 || number > 99) {
+      setError('Número da camisa deve estar entre 0 e 99');
+      return false;
+    }
+
+    // Check if number is already taken in this team
+    try {
+      let query = supabase
+        .from('players')
+        .select('id, name, jersey_number')
+        .eq('team_id', teamId)
+        .eq('jersey_number', number)
+        .eq('is_active', true);
+
+      if (excludePlayerId) {
+        query = query.neq('id', excludePlayerId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const existingPlayer = data[0] as any;
+        setError(`Número ${number} já está sendo usado por ${existingPlayer.name}`);
+        return false;
+      }
+
+      return true;
+    } catch (error: any) {
+      setError('Erro ao validar número: ' + error.message);
+      return false;
+    }
+  }
+
+  function validateBirthDate(dateString: string): boolean {
+    if (!dateString) return true; // Optional field
+
+    const date = new Date(dateString);
+    const today = new Date();
+    const maxAge = new Date(today.getFullYear() - 50, today.getMonth(), today.getDate());
+    const minAge = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate());
+
+    if (isNaN(date.getTime())) {
+      setError('Data de nascimento inválida');
+      return false;
+    }
+
+    if (date > minAge) {
+      setError('Atleta deve ter pelo menos 5 anos');
+      return false;
+    }
+
+    if (date < maxAge) {
+      setError('Data de nascimento muito antiga. Verifique o ano.');
+      return false;
+    }
+
+    return true;
+  }
+
   async function handleCreatePlayer(e: React.FormEvent) {
     e.preventDefault();
     
     if (!formData.name.trim()) {
       setError('Por favor, preencha o nome do atleta');
+      return;
+    }
+
+    // Validate jersey number
+    if (formData.jersey_number) {
+      const isValid = await validateJerseyNumber(formData.jersey_number);
+      if (!isValid) {
+        setCreating(false);
+        return;
+      }
+    }
+
+    // Validate birth date
+    if (formData.birth_date && !validateBirthDate(formData.birth_date)) {
+      setCreating(false);
       return;
     }
 
@@ -120,8 +203,79 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
     setCreating(false);
   }
 
-  async function handleDeactivatePlayer(playerId: string) {
-    if (!confirm('Desativar este atleta?')) return;
+  function handleEditPlayer(player: Player) {
+    setEditingPlayer(player);
+    setFormData({
+      name: player.name,
+      position: player.position || '',
+      jersey_number: player.jersey_number?.toString() || '',
+      birth_date: player.birth_date || '',
+      notes: player.notes || '',
+    });
+    setShowEditModal(true);
+  }
+
+  async function handleUpdatePlayer(e: React.FormEvent) {
+    e.preventDefault();
+    
+    if (!editingPlayer || !formData.name.trim()) {
+      setError('Por favor, preencha o nome do atleta');
+      return;
+    }
+
+    // Validate jersey number (exclude current player)
+    if (formData.jersey_number) {
+      const isValid = await validateJerseyNumber(formData.jersey_number, editingPlayer.id);
+      if (!isValid) {
+        return;
+      }
+    }
+
+    // Validate birth date
+    if (formData.birth_date && !validateBirthDate(formData.birth_date)) {
+      return;
+    }
+
+    setError('');
+    setUpdating(true);
+
+    try {
+      const { error } = await supabase
+        .from('players')
+        .update({
+          name: formData.name,
+          position: formData.position || null,
+          jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
+          birth_date: formData.birth_date || null,
+          notes: formData.notes || null,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq('id', editingPlayer.id);
+
+      if (error) throw error;
+
+      setSuccess('Atleta atualizado com sucesso!');
+      setShowEditModal(false);
+      setEditingPlayer(null);
+      setFormData({
+        name: '',
+        position: '',
+        jersey_number: '',
+        birth_date: '',
+        notes: '',
+      });
+      loadPlayers();
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      setError('Erro ao atualizar atleta: ' + error.message);
+    }
+
+    setUpdating(false);
+  }
+
+  async function handleDeactivatePlayer(playerId: string, playerName: string) {
+    if (!confirm(`Desativar ${playerName}? O atleta será removido da lista ativa.`)) return;
 
     try {
       const { error } = await supabase
@@ -139,6 +293,25 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
       setError('Erro ao desativar atleta: ' + error.message);
+    }
+  }
+
+  async function handleDeletePlayer(playerId: string, playerName: string) {
+    if (!confirm(`ATENÇÃO: Deletar permanentemente ${playerName}? Esta ação não pode ser desfeita!`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('players')
+        .delete()
+        .eq('id', playerId);
+
+      if (error) throw error;
+
+      setSuccess('Atleta deletado permanentemente!');
+      loadPlayers();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      setError('Erro ao deletar atleta: ' + error.message);
     }
   }
 
@@ -274,14 +447,14 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
                   {/* Actions */}
                   <div className="col-span-2 flex justify-end gap-2">
                     <button
-                      onClick={() => {/* TODO: Edit player */}}
+                      onClick={() => handleEditPlayer(player)}
                       className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
                       title="Editar"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDeactivatePlayer(player.id)}
+                      onClick={() => handleDeactivatePlayer(player.id, player.name)}
                       className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Desativar"
                     >
@@ -291,6 +464,130 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Player Modal */}
+      {showEditModal && editingPlayer && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowEditModal(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Editar Atleta
+              </h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleUpdatePlayer} className="p-6 space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome Completo *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Ex: João Silva"
+                  required
+                />
+              </div>
+
+              {/* Jersey Number & Position */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Número
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    value={formData.jersey_number}
+                    onChange={(e) => setFormData({ ...formData, jersey_number: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    placeholder="10"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Posição
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.position}
+                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    placeholder="Pivô"
+                  />
+                </div>
+              </div>
+
+              {/* Birth Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Data de Nascimento
+                </label>
+                <input
+                  type="date"
+                  value={formData.birth_date}
+                  onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  max={new Date().toISOString().split('T')[0]}
+                  min={new Date(new Date().getFullYear() - 50, 0, 1).toISOString().split('T')[0]}
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Observações (opcional)
+                </label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                  placeholder="Informações adicionais sobre o atleta..."
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                >
+                  {updating ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
