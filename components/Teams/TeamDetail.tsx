@@ -15,6 +15,8 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
   const [teamLevelPlayerCount, setTeamLevelPlayerCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
+  const [showEditCategory, setShowEditCategory] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -27,6 +29,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
     notes: '',
   });
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     loadTeamData();
@@ -105,6 +108,58 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
       loadTeamData();
       setTimeout(() => setSuccess(''), 3000);
     }
+  }
+
+  function handleEditCategory(category: Category) {
+    setEditingCategory(category);
+    setFormData({
+      name: category.name,
+      age_group: category.age_group || '',
+      season: category.season || new Date().getFullYear().toString(),
+      gender: category.gender || '',
+      notes: category.notes || '',
+    });
+    setShowEditCategory(true);
+  }
+
+  async function handleUpdateCategory(e: React.FormEvent) {
+    e.preventDefault();
+    
+    if (!editingCategory || !formData.name.trim()) {
+      setError('Por favor, preencha o nome da categoria');
+      return;
+    }
+
+    setError('');
+    setUpdating(true);
+
+    const { error } = await categoryService.updateCategory(editingCategory.id, {
+      name: formData.name,
+      age_group: formData.age_group || undefined,
+      season: formData.season || undefined,
+      gender: formData.gender || undefined,
+      notes: formData.notes || undefined,
+    });
+
+    if (error) {
+      setError('Erro ao atualizar categoria: ' + error.message);
+    } else {
+      setSuccess('Categoria atualizada com sucesso!');
+      setShowEditCategory(false);
+      setEditingCategory(null);
+      setFormData({
+        name: '',
+        age_group: '',
+        season: new Date().getFullYear().toString(),
+        gender: '',
+        notes: '',
+      });
+      loadTeamData();
+      
+      setTimeout(() => setSuccess(''), 3000);
+    }
+
+    setUpdating(false);
   }
 
   if (loading) {
@@ -274,7 +329,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    // TODO: Edit category
+                    handleEditCategory(category);
                   }}
                   className="flex-1 flex items-center justify-center gap-2 text-gray-600 hover:text-gray-800 text-sm"
                   title="Editar"
@@ -413,6 +468,129 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
                   className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
                 >
                   {creating ? 'Criando...' : 'Criar Categoria'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {showEditCategory && editingCategory && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowEditCategory(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Editar Categoria
+              </h3>
+              <button
+                onClick={() => setShowEditCategory(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleUpdateCategory} className="p-6 space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome da Categoria *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Ex: Sub-12, Juvenil, Feminino A"
+                  required
+                />
+              </div>
+
+              {/* Age Group */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Faixa Etária
+                </label>
+                <input
+                  type="text"
+                  value={formData.age_group}
+                  onChange={(e) => setFormData({ ...formData, age_group: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Ex: U-12, 10-12 anos"
+                />
+              </div>
+
+              {/* Season */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Temporada
+                </label>
+                <input
+                  type="text"
+                  value={formData.season}
+                  onChange={(e) => setFormData({ ...formData, season: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Ex: 2025"
+                />
+              </div>
+
+              {/* Gender */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gênero
+                </label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="">Selecione...</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="feminino">Feminino</option>
+                  <option value="misto">Misto</option>
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Observações (opcional)
+                </label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                  placeholder="Informações adicionais..."
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditCategory(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                >
+                  {updating ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
             </form>

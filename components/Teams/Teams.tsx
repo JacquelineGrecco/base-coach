@@ -12,6 +12,8 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -24,6 +26,7 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
     notes: '',
   });
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     loadTeams();
@@ -99,6 +102,50 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
       loadTeams();
       setTimeout(() => setSuccess(''), 3000);
     }
+  }
+
+  function handleEditTeam(team: Team) {
+    setEditingTeam(team);
+    setFormData({
+      name: team.name,
+      sport: team.sport,
+      season: team.season || new Date().getFullYear().toString(),
+      notes: team.notes || '',
+    });
+    setShowEditModal(true);
+  }
+
+  async function handleUpdateTeam(e: React.FormEvent) {
+    e.preventDefault();
+    
+    if (!editingTeam || !formData.name.trim()) {
+      setError('Por favor, preencha o nome do time');
+      return;
+    }
+
+    setError('');
+    setUpdating(true);
+
+    const { error } = await teamService.updateTeam(editingTeam.id, formData);
+
+    if (error) {
+      setError('Erro ao atualizar time: ' + error.message);
+    } else {
+      setSuccess('Time atualizado com sucesso!');
+      setShowEditModal(false);
+      setEditingTeam(null);
+      setFormData({
+        name: '',
+        sport: 'futsal',
+        season: new Date().getFullYear().toString(),
+        notes: '',
+      });
+      loadTeams();
+      
+      setTimeout(() => setSuccess(''), 3000);
+    }
+
+    setUpdating(false);
   }
 
   if (loading) {
@@ -234,9 +281,23 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
                   Ver Detalhes
                 </button>
                 
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditTeam(team);
+                  }}
+                  className="flex items-center justify-center gap-2 bg-gray-50 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+                  title="Editar"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                
                 {team.is_archived ? (
                   <button
-                    onClick={() => handleUnarchiveTeam(team.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUnarchiveTeam(team.id);
+                    }}
                     className="flex items-center justify-center gap-2 bg-gray-50 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm"
                     title="Desarquivar"
                   >
@@ -244,7 +305,10 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
                   </button>
                 ) : (
                   <button
-                    onClick={() => handleArchiveTeam(team.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleArchiveTeam(team.id);
+                    }}
                     className="flex items-center justify-center gap-2 bg-gray-50 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm"
                     title="Arquivar"
                   >
@@ -361,6 +425,117 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
                   className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
                 >
                   {creating ? 'Criando...' : 'Criar Time'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Team Modal */}
+      {showEditModal && editingTeam && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowEditModal(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Editar Time
+              </h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleUpdateTeam} className="p-6 space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome do Time *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Ex: Futsal Feminino Vila Nova"
+                  required
+                />
+              </div>
+
+              {/* Sport */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Esporte *
+                </label>
+                <select
+                  value={formData.sport}
+                  onChange={(e) => setFormData({ ...formData, sport: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="futsal">Futsal</option>
+                  <option value="futebol">Futebol</option>
+                  <option value="volei">Vôlei</option>
+                  <option value="basquete">Basquete</option>
+                  <option value="handebol">Handebol</option>
+                  <option value="outro">Outro</option>
+                </select>
+              </div>
+
+              {/* Season */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Temporada
+                </label>
+                <input
+                  type="text"
+                  value={formData.season}
+                  onChange={(e) => setFormData({ ...formData, season: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Ex: 2025"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Observações (opcional)
+                </label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                  placeholder="Informações adicionais sobre o time..."
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                >
+                  {updating ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
             </form>
