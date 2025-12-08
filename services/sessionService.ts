@@ -41,7 +41,7 @@ export const sessionService = {
         .from('sessions')
         .select(`
           *,
-          teams!inner(name),
+          teams(name),
           categories(name)
         `)
         .order('date', { ascending: false });
