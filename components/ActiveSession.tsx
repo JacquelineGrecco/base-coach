@@ -261,8 +261,8 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
          </div>
 
          <button 
-            onClick={() => setCurrentPlayerIndex(prev => Math.min(team.players.length - 1, prev + 1))}
-            disabled={currentPlayerIndex === team.players.length - 1}
+            onClick={() => setCurrentPlayerIndex(prev => Math.min(players.length - 1, prev + 1))}
+            disabled={currentPlayerIndex === players.length - 1}
             className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30"
          >
             <ChevronRight className="w-8 h-8 text-gray-700" />
