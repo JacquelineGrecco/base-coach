@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Evaluation } from '../types';
 import { VALENCES } from '../constants';
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, CheckCircle, Clock, AlertCircle, Pause, Play, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface ActiveSessionProps {
@@ -31,6 +31,9 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [sessionDuration, setSessionDuration] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [sessionNotes, setSessionNotes] = useState('');
+  const [playerNotes, setPlayerNotes] = useState<{[playerId: string]: string}>({});
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   
@@ -73,13 +76,15 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
   // Swipe detection constants
   const minSwipeDistance = 50;
   
-  // Timer simulation
+  // Timer with pause/resume
   useEffect(() => {
+    if (isPaused) return;
+    
     const timer = setInterval(() => {
       setSessionDuration(prev => prev + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [isPaused]);
 
   // Keyboard navigation for faster workflow
   useEffect(() => {
@@ -210,9 +215,23 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
     >
       {/* Top Bar: Timer & Navigation */}
       <div className="bg-white border-b p-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center space-x-2 text-blue-900 font-bold text-xl">
-          <Clock className="w-6 h-6 text-blue-600" />
-          <span>{formatTime(sessionDuration)}</span>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 text-blue-900 font-bold text-xl">
+            <Clock className="w-6 h-6 text-blue-600" />
+            <span>{formatTime(sessionDuration)}</span>
+          </div>
+          <button
+            onClick={() => setIsPaused(!isPaused)}
+            className={`p-2 rounded-lg transition-colors ${
+              isPaused ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+            }`}
+            title={isPaused ? 'Retomar' : 'Pausar'}
+          >
+            {isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+          </button>
+          {isPaused && (
+            <span className="text-sm font-medium text-yellow-600">PAUSADO</span>
+          )}
         </div>
         <div className="flex space-x-2">
             <button 
@@ -316,6 +335,23 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
             ))}
         </div>
         
+        {/* Player Notes */}
+        <div className="mt-8 max-w-2xl mx-auto">
+          <div className="bg-white p-6 rounded-xl shadow-lg border-2 border-gray-200">
+            <div className="flex items-center gap-2 mb-3">
+              <FileText className="w-5 h-5 text-blue-600" />
+              <h3 className="font-semibold text-gray-900">Observações do Atleta</h3>
+            </div>
+            <textarea
+              value={playerNotes[currentPlayer.id] || ''}
+              onChange={(e) => setPlayerNotes({...playerNotes, [currentPlayer.id]: e.target.value})}
+              placeholder="Adicione observações específicas sobre este atleta..."
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              rows={3}
+            />
+          </div>
+        </div>
+
         {/* Quick Action Hint */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-500">
