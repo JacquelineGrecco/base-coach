@@ -50,6 +50,7 @@ const Reports: React.FC = () => {
   const [teamStats, setTeamStats] = useState<any[]>([]);
   const [evolutionData, setEvolutionData] = useState<EvolutionData[]>([]);
   const [selectedValenceForEvolution, setSelectedValenceForEvolution] = useState<string>('');
+  const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'last7' | 'last30' | 'last90'>('all');
 
   // Load teams on mount
   useEffect(() => {
@@ -363,6 +364,34 @@ const Reports: React.FC = () => {
       fullMark: 5,
     }));
   }, [playerStats]);
+
+  // Filter evolution data by date range
+  const filteredEvolutionData = useMemo(() => {
+    if (dateRangeFilter === 'all') return evolutionData;
+    
+    const now = new Date();
+    const cutoffDate = new Date();
+    
+    switch (dateRangeFilter) {
+      case 'last7':
+        cutoffDate.setDate(now.getDate() - 7);
+        break;
+      case 'last30':
+        cutoffDate.setDate(now.getDate() - 30);
+        break;
+      case 'last90':
+        cutoffDate.setDate(now.getDate() - 90);
+        break;
+    }
+    
+    return evolutionData.filter(data => {
+      // Parse the date from DD/MM format
+      const [day, month] = data.date.split('/').map(Number);
+      const year = now.getFullYear();
+      const dataDate = new Date(year, month - 1, day);
+      return dataDate >= cutoffDate;
+    });
+  }, [evolutionData, dateRangeFilter]);
 
   // Get selected player object
   const selectedPlayer = players.find(p => p.id === selectedPlayerId);
@@ -904,22 +933,40 @@ const Reports: React.FC = () => {
             </div>
           </div>
 
-          {/* Valence Selector */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Selecionar Critério para Visualizar Evolução
-            </label>
-            <select
-              value={selectedValenceForEvolution}
-              onChange={(e) => setSelectedValenceForEvolution(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            >
-              {playerStats.map(stat => (
-                <option key={stat.valence_id} value={stat.valence_id}>
-                  {stat.valence_name} (Média: {stat.average.toFixed(1)})
-                </option>
-              ))}
-            </select>
+          {/* Valence Selector and Date Range Filter */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Selecionar Critério para Visualizar Evolução
+              </label>
+              <select
+                value={selectedValenceForEvolution}
+                onChange={(e) => setSelectedValenceForEvolution(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                {playerStats.map(stat => (
+                  <option key={stat.valence_id} value={stat.valence_id}>
+                    {stat.valence_name} (Média: {stat.average.toFixed(1)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Período
+              </label>
+              <select
+                value={dateRangeFilter}
+                onChange={(e) => setDateRangeFilter(e.target.value as any)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="all">Todas as Sessões</option>
+                <option value="last7">Últimos 7 dias</option>
+                <option value="last30">Últimos 30 dias</option>
+                <option value="last90">Últimos 90 dias</option>
+              </select>
+            </div>
           </div>
 
           {/* Evolution Line Chart */}
@@ -929,7 +976,7 @@ const Reports: React.FC = () => {
               Evolução: {playerStats.find(s => s.valence_id === selectedValenceForEvolution)?.valence_name}
             </h3>
             <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={evolutionData}>
+              <LineChart data={filteredEvolutionData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="date" 
@@ -966,10 +1013,12 @@ const Reports: React.FC = () => {
                 <h3 className="font-semibold text-slate-700">Melhor Pontuação</h3>
               </div>
               <div className="text-3xl font-bold text-slate-900">
-                {Math.max(...evolutionData
-                  .filter(d => d[selectedValenceForEvolution] !== undefined)
-                  .map(d => Number(d[selectedValenceForEvolution]) || 0)
-                ).toFixed(1)}
+                {filteredEvolutionData.length > 0
+                  ? Math.max(...filteredEvolutionData
+                      .filter(d => d[selectedValenceForEvolution] !== undefined)
+                      .map(d => Number(d[selectedValenceForEvolution]) || 0)
+                    ).toFixed(1)
+                  : '0.0'}
               </div>
               <p className="text-sm text-slate-500 mt-1">Pontuação máxima alcançada</p>
             </div>
@@ -982,11 +1031,13 @@ const Reports: React.FC = () => {
                 <h3 className="font-semibold text-slate-700">Média Total</h3>
               </div>
               <div className="text-3xl font-bold text-slate-900">
-                {(evolutionData
-                  .filter(d => d[selectedValenceForEvolution] !== undefined)
-                  .reduce((sum, d) => sum + (Number(d[selectedValenceForEvolution]) || 0), 0) / 
-                  evolutionData.filter(d => d[selectedValenceForEvolution] !== undefined).length
-                ).toFixed(1)}
+                {filteredEvolutionData.length > 0
+                  ? (filteredEvolutionData
+                      .filter(d => d[selectedValenceForEvolution] !== undefined)
+                      .reduce((sum, d) => sum + (Number(d[selectedValenceForEvolution]) || 0), 0) / 
+                      filteredEvolutionData.filter(d => d[selectedValenceForEvolution] !== undefined).length
+                    ).toFixed(1)
+                  : '0.0'}
               </div>
               <p className="text-sm text-slate-500 mt-1">Média em todas as sessões</p>
             </div>
@@ -1000,7 +1051,7 @@ const Reports: React.FC = () => {
               </div>
               <div className="text-3xl font-bold text-slate-900">
                 {(() => {
-                  const scores = evolutionData
+                  const scores = filteredEvolutionData
                     .filter(d => d[selectedValenceForEvolution] !== undefined)
                     .map(d => Number(d[selectedValenceForEvolution]) || 0);
                   if (scores.length < 2) return '0.0';
