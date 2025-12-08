@@ -14,6 +14,9 @@ export interface UserProfile {
   plan_type?: PlanType;
   created_at: string;
   updated_at: string;
+  is_active?: boolean;
+  deactivated_at?: string | null;
+  deactivation_reason?: string | null;
 }
 
 /**
@@ -147,23 +150,33 @@ export const userService = {
   },
 
   /**
-   * Request account deletion
-   * In production, this would create a deletion request ticket
+   * Request account deactivation
+   * User cannot login. Support must reactivate within 365 days.
+   * After 365 days, account is permanently deleted.
    */
-  async requestAccountDeletion(userId: string, reason?: string): Promise<{ error: Error | null }> {
+  async requestAccountDeactivation(userId: string, reason?: string): Promise<{ error: Error | null }> {
     try {
-      // For MVP, we'll just delete immediately
-      // In production, you'd want to:
-      // 1. Create a deletion request
-      // 2. Send confirmation email
-      // 3. Wait 30 days before permanent deletion
-      // 4. Allow cancellation during waiting period
-
-      console.log(`Deletion requested for user ${userId}. Reason: ${reason || 'Not provided'}`);
+      console.log(`Account deactivation requested for user ${userId}. Reason: ${reason || 'Not provided'}`);
       
-      return await this.deleteAccount(userId);
+      // Call the deactivate_user_account function
+      const { error } = await supabase.rpc('deactivate_user_account', {
+        user_id_param: userId,
+        reason_param: reason || null
+      });
+
+      if (error) throw error;
+
+      // Sign out the user
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        console.error('⚠️ Error signing out:', signOutError);
+        throw new Error(`Erro ao fazer logout: ${signOutError.message}`);
+      }
+
+      console.log('✅ User account deactivated successfully.');
+      return { error: null };
     } catch (error) {
-      console.error('Request account deletion error:', error);
+      console.error('Request account deactivation error:', error);
       return { error: error as Error };
     }
   },

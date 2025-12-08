@@ -25,6 +25,9 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
   const [countdown, setCountdown] = useState(40);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   // Clear profile error when component mounts
   React.useEffect(() => {
@@ -71,10 +74,69 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
     { test: /[^a-zA-Z0-9]/.test(password), label: 'Um caractere especial (!@#$...)' },
   ], [password]);
 
+  // Email validation on change
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      setEmailError('');
+      return;
+    }
+    if (!emailRegex.test(email)) {
+      setEmailError('Email inválido');
+    } else {
+      setEmailError('');
+    }
+  };
+
+  // Phone validation (Brazilian format)
+  const validatePhone = (phone: string) => {
+    if (!phone) {
+      setPhoneError('');
+      return;
+    }
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '');
+    
+    // Brazilian phone: 11 digits (DDD + 9 digits)
+    if (digits.length < 10 || digits.length > 11) {
+      setPhoneError('Telefone inválido. Use: (00) 00000-0000');
+      return;
+    }
+    
+    // Check if all digits are the same (invalid)
+    const uniqueDigits = new Set(digits);
+    if (uniqueDigits.size === 1) {
+      setPhoneError('Telefone inválido. Digite um número real');
+      return;
+    }
+    
+    // Check if the phone number (without DDD) has all same digits
+    const phoneNumber = digits.slice(2); // Remove DDD
+    const uniquePhoneDigits = new Set(phoneNumber);
+    if (uniquePhoneDigits.size === 1) {
+      setPhoneError('Telefone inválido. Digite um número real');
+      return;
+    }
+    
+    setPhoneError('');
+  };
+
+  // Format phone as user types
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    if (digits.length <= 11) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+    }
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setSuccess(false);
+    setEmailError('');
 
     // Validate required fields in Portuguese
     if (!name.trim()) {
@@ -84,6 +146,40 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
 
     if (!email.trim()) {
       setError('Por favor, preencha seu email');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Email inválido. Use o formato: exemplo@email.com');
+      return;
+    }
+
+    if (!phone.trim()) {
+      setError('Por favor, preencha seu telefone');
+      return;
+    }
+
+    // Validate phone format
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      setError('Telefone inválido. Use o formato: (00) 00000-0000');
+      return;
+    }
+    
+    // Check if all digits are the same
+    const uniqueDigits = new Set(phoneDigits);
+    if (uniqueDigits.size === 1) {
+      setError('Telefone inválido. Digite um número real');
+      return;
+    }
+    
+    // Check if the phone number (without DDD) has all same digits
+    const phoneNumber = phoneDigits.slice(2);
+    const uniquePhoneDigits = new Set(phoneNumber);
+    if (uniquePhoneDigits.size === 1) {
+      setError('Telefone inválido. Digite um número real');
       return;
     }
 
@@ -124,7 +220,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
     setLoading(true);
 
     try {
-      const { error } = await signUp(email, password, name);
+      const { error } = await signUp(email, password, name, phone);
       if (error) {
         // Translate Supabase errors to user-friendly Portuguese messages
         if (error.message.includes('User already registered') || error.message.includes('already registered')) {
@@ -145,6 +241,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
         // Clear form
         setName('');
         setEmail('');
+        setPhone('');
         setPassword('');
         setConfirmPassword('');
       }
@@ -245,11 +342,60 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    validateEmail(e.target.value);
+                  }}
+                  onBlur={(e) => validateEmail(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                    emailError ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="seu@email.com"
                 />
             </div>
+            {emailError && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" />
+                {emailError}
+              </p>
+            )}
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+              Telefone
+            </label>
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                  const formatted = formatPhone(e.target.value);
+                  setPhone(formatted);
+                  validatePhone(formatted);
+                }}
+                onBlur={(e) => validatePhone(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                  phoneError ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="(00) 00000-0000"
+                maxLength={15}
+              />
+            </div>
+            {phoneError && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" />
+                {phoneError}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              Este número será usado para validar sua conta
+            </p>
           </div>
 
           {/* Password */}

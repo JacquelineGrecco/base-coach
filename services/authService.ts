@@ -16,7 +16,7 @@ export const authService = {
    * Sign up a new user
    * Note: User profile is automatically created via database trigger
    */
-  async signUp(email: string, password: string, name: string, userType: 'coach' | 'player' = 'coach'): Promise<{ user: User | null; error: Error | null }> {
+  async signUp(email: string, password: string, name: string, phone?: string, userType: 'coach' | 'player' = 'coach'): Promise<{ user: User | null; error: Error | null }> {
     try {
       // Create auth user with metadata
       // The database trigger will automatically create the user profile
@@ -26,6 +26,7 @@ export const authService = {
         options: {
           data: {
             name: name,
+            phone: phone,
             user_type: userType, // Store user type in metadata
           },
         },
