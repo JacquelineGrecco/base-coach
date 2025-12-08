@@ -52,7 +52,10 @@ function AppContent() {
   const renderView = () => {
     switch (currentView) {
       case "DASHBOARD":
-        return <Dashboard teams={MOCK_TEAMS} onStartSession={handleStartSessionSetup} />;
+        return <Dashboard 
+          onStartSession={handleStartSessionSetup} 
+          onNavigateToTeams={() => setCurrentView("TEAMS")}
+        />;
       case "SESSION_SETUP":
         return (
           <SessionSetup 
