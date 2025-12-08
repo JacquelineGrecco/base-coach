@@ -228,7 +228,8 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
                 {currentPlayer.jersey_number && (
                   <div className="absolute bottom-0 right-0 bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                     #{currentPlayer.jersey_number}
-                </div>
+                  </div>
+                )}
             </div>
             <h2 className="mt-2 text-lg font-bold text-gray-900">{currentPlayer.name}</h2>
             {currentPlayer.position && (
