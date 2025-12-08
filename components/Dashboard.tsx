@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Activity, Calendar, ArrowRight, AlertCircle, Plus, Folder } from 'lucide-react';
+import { Users, Activity, Calendar, ArrowRight, AlertCircle, Plus, Folder, Clock } from 'lucide-react';
 import { teamService } from '../services/teamService';
+import { sessionService, Session } from '../services/sessionService';
 import { supabase } from '../lib/supabase';
 
 interface DashboardProps {
@@ -28,6 +29,7 @@ interface DbTeam {
 const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams }) => {
   const [teams, setTeams] = useState<DbTeam[]>([]);
   const [players, setPlayers] = useState<DbPlayer[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -39,6 +41,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
   useEffect(() => {
     if (selectedTeamId) {
       loadPlayers(selectedTeamId);
+      loadSessions(selectedTeamId);
     }
   }, [selectedTeamId]);
 
@@ -79,6 +82,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
     } catch (error: any) {
       console.error('Error loading players:', error);
       setError('Erro ao carregar atletas');
+    }
+  }
+
+  async function loadSessions(teamId: string) {
+    try {
+      const { sessions: sessionsData, error } = await sessionService.getSessions(teamId);
+      
+      if (error) {
+        console.error('Error loading sessions:', error);
+        return;
+      }
+      
+      // Show only the 5 most recent sessions
+      setSessions((sessionsData || []).slice(0, 5));
+    } catch (error: any) {
+      console.error('Error loading sessions:', error);
     }
   }
 
@@ -273,6 +292,76 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
                           ))}
                       </tbody>
                   </table>
+              </div>
+            )}
+        </div>
+
+        {/* Recent Sessions */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Sessões Recentes</h3>
+                  <p className="text-sm text-slate-500 mt-1">Últimas 5 sessões de treino</p>
+                </div>
+                <Clock className="w-6 h-6 text-slate-400" />
+            </div>
+            
+            {sessions.length === 0 ? (
+              <div className="p-12 text-center">
+                <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-600">Nenhuma sessão registrada ainda.</p>
+                <p className="text-sm text-slate-500 mt-1">
+                  Inicie sua primeira sessão de avaliação.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                  {sessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="p-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-slate-900">
+                              {new Date(session.date).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                            {session.category_name && (
+                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                                {session.category_name}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-sm text-slate-600">
+                            <span className="flex items-center gap-1">
+                              <Users className="w-4 h-4" />
+                              {session.evaluation_count || 0} avaliações
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Activity className="w-4 h-4" />
+                              {session.selected_valences.length} critérios
+                            </span>
+                            {session.duration_minutes && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                {session.duration_minutes} min
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                          Ver detalhes →
+                        </button>
+                      </div>
+                    </div>
+                  ))}
               </div>
             )}
         </div>

@@ -11,8 +11,8 @@ import DrillLibrary from './components/DrillLibrary';
 import Reports from './components/Reports';
 import Profile from './components/Profile';
 import TeamsContainer from './components/Teams/TeamsContainer';
-import { MOCK_TEAMS } from './constants';
 import { ViewState, Evaluation } from './types';
+import { sessionService } from './services/sessionService';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -49,11 +49,54 @@ function AppContent() {
     setCurrentView("ACTIVE_SESSION");
   };
 
-  const handleEndSession = (newEvaluations: Evaluation[]) => {
-    // In a real app, this would POST to an API
-    console.log("Saving evaluations:", newEvaluations);
-    setSessionEvaluations(prev => [...prev, ...newEvaluations]);
-    setCurrentView("DASHBOARD");
+  const handleEndSession = async (newEvaluations: Evaluation[]) => {
+    if (!sessionData) return;
+
+    try {
+      // Create session record
+      const { session, error: sessionError } = await sessionService.createSession({
+        team_id: sessionData.teamId,
+        category_id: sessionData.categoryId,
+        date: new Date().toISOString(),
+        selected_valences: sessionData.selectedValenceIds,
+      });
+
+      if (sessionError || !session) {
+        alert('Erro ao salvar sessão: ' + sessionError?.message);
+        return;
+      }
+
+      // Transform and save evaluations
+      const evaluationsToSave = newEvaluations.flatMap(evaluation => 
+        Object.entries(evaluation.scores).map(([valenceId, score]) => ({
+          player_id: evaluation.playerId,
+          valence_id: valenceId,
+          score: score,
+        }))
+      );
+
+      if (evaluationsToSave.length > 0) {
+        const { error: evalError } = await sessionService.saveEvaluations(
+          session.id,
+          evaluationsToSave
+        );
+
+        if (evalError) {
+          alert('Erro ao salvar avaliações: ' + evalError.message);
+          return;
+        }
+      }
+
+      // Save to local state for Reports view
+      setSessionEvaluations(prev => [...prev, ...newEvaluations]);
+      
+      // Show success and redirect
+      alert('✅ Sessão salva com sucesso! ' + evaluationsToSave.length + ' avaliações registradas.');
+      setCurrentView("DASHBOARD");
+    } catch (error: any) {
+      console.error('Error saving session:', error);
+      alert('Erro inesperado ao salvar sessão: ' + error.message);
+    }
   };
 
   const renderView = () => {
