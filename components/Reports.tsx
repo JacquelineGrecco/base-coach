@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users, Download, FileText } from 'lucide-react';
+import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users, Download, FileText, Brain, Sparkles, Target, Lightbulb } from 'lucide-react';
 import { VALENCES } from '../constants';
 import { supabase } from '../lib/supabase';
 import { sessionService, SessionEvaluation } from '../services/sessionService';
 import { teamService, Team } from '../services/teamService';
 import jsPDF from 'jspdf';
+import { generatePlayerInsights, PlayerInsights } from '../services/geminiService';
 
 interface Player {
   id: string;
@@ -52,6 +53,8 @@ const Reports: React.FC = () => {
   const [evolutionData, setEvolutionData] = useState<EvolutionData[]>([]);
   const [selectedValenceForEvolution, setSelectedValenceForEvolution] = useState<string>('');
   const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'last7' | 'last30' | 'last90'>('all');
+  const [aiInsights, setAiInsights] = useState<PlayerInsights | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
 
   // Load teams on mount
   useEffect(() => {
@@ -550,6 +553,25 @@ const Reports: React.FC = () => {
     // Save PDF
     const fileName = `relatorio_${selectedPlayer.name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(fileName);
+  };
+
+  // Generate AI insights for player
+  const handleGenerateInsights = async () => {
+    if (!selectedPlayer || playerStats.length === 0) return;
+
+    setLoadingInsights(true);
+    try {
+      const insights = await generatePlayerInsights(
+        selectedPlayer.name,
+        playerStats,
+        sessions.length
+      );
+      setAiInsights(insights);
+    } catch (error) {
+      console.error('Error generating insights:', error);
+    } finally {
+      setLoadingInsights(false);
+    }
   };
 
   if (loading) {
@@ -1067,6 +1089,107 @@ const Reports: React.FC = () => {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* AI Insights Section */}
+      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl shadow-sm border-2 border-indigo-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <Brain className="w-5 h-5 text-indigo-600" />
+            Análise com IA
+          </h3>
+          <button
+            onClick={handleGenerateInsights}
+            disabled={loadingInsights || playerStats.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+          >
+            {loadingInsights ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span className="text-sm font-medium">Gerando...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  {aiInsights ? 'Atualizar Análise' : 'Gerar Análise com IA'}
+                </span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {aiInsights ? (
+          <div className="space-y-6">
+            {/* Strengths */}
+            <div>
+              <h4 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                <Award className="w-4 h-4" />
+                Pontos Fortes
+              </h4>
+              <ul className="space-y-2">
+                {aiInsights.strengths.map((strength, index) => (
+                  <li key={index} className="flex items-start gap-2 text-slate-700">
+                    <span className="text-green-600 font-bold mt-0.5">✓</span>
+                    <span>{strength}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Weaknesses */}
+            <div>
+              <h4 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                <Target className="w-4 h-4" />
+                Pontos a Melhorar
+              </h4>
+              <ul className="space-y-2">
+                {aiInsights.weaknesses.map((weakness, index) => (
+                  <li key={index} className="flex items-start gap-2 text-slate-700">
+                    <span className="text-orange-600 font-bold mt-0.5">!</span>
+                    <span>{weakness}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Recommendations */}
+            <div>
+              <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                <Lightbulb className="w-4 h-4" />
+                Recomendações de Treino
+              </h4>
+              <ul className="space-y-2">
+                {aiInsights.recommendations.map((recommendation, index) => (
+                  <li key={index} className="flex items-start gap-2 text-slate-700">
+                    <span className="text-blue-600 font-bold mt-0.5">→</span>
+                    <span>{recommendation}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Overall Assessment */}
+            <div className="bg-white/70 rounded-lg p-4 border border-indigo-200">
+              <h4 className="font-semibold text-indigo-900 mb-2">Avaliação Geral</h4>
+              <p className="text-slate-700 leading-relaxed">{aiInsights.overallAssessment}</p>
+            </div>
+
+            <div className="text-xs text-slate-500 text-center pt-2 border-t border-indigo-200">
+              Análise gerada por IA • Powered by Google Gemini • Use como orientação para o desenvolvimento do atleta
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Brain className="w-12 h-12 text-indigo-400 mx-auto mb-3" />
+            <p className="text-slate-600 mb-4">
+              Clique no botão acima para gerar uma análise detalhada com IA sobre o desempenho do atleta.
+            </p>
+            <p className="text-sm text-slate-500">
+              A análise incluirá pontos fortes, áreas de melhoria e recomendações personalizadas de treino.
+            </p>
+          </div>
+        )}
       </div>
         </>
       )}
