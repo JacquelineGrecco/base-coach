@@ -1,22 +1,72 @@
-import React, { useState, useMemo } from 'react';
-import { Team, Player, Evaluation } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Evaluation } from '../types';
 import { VALENCES } from '../constants';
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface ActiveSessionProps {
-  team: Team;
+  teamId: string;
+  categoryId: string | null;
   selectedValenceIds: string[];
   onEndSession: (evaluations: Evaluation[]) => void;
   onCancel: () => void;
 }
 
-const ActiveSession: React.FC<ActiveSessionProps> = ({ team, selectedValenceIds, onEndSession, onCancel }) => {
+interface DbPlayer {
+  id: string;
+  name: string;
+  position?: string;
+  jersey_number?: number;
+}
+
+const ActiveSession: React.FC<ActiveSessionProps> = ({ 
+  teamId, 
+  categoryId, 
+  selectedValenceIds, 
+  onEndSession, 
+  onCancel 
+}) => {
+  const [players, setPlayers] = useState<DbPlayer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   
+  // Load players on mount
+  useEffect(() => {
+    loadPlayers();
+  }, [teamId, categoryId]);
+
+  async function loadPlayers() {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('players')
+        .select('id, name, position, jersey_number')
+        .eq('team_id', teamId)
+        .eq('is_active', true)
+        .order('jersey_number', { ascending: true, nullsFirst: false })
+        .order('name');
+
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      } else if (categoryId === null) {
+        // Load all players regardless of category
+        // Don't filter by category_id
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setPlayers(data || []);
+    } catch (error: any) {
+      console.error('Error loading players:', error);
+    }
+    setLoading(false);
+  }
+
   // Filter valences to show only selected ones
   const activeValences = VALENCES.filter(v => selectedValenceIds.includes(v.id));
   
@@ -24,7 +74,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ team, selectedValenceIds,
   const minSwipeDistance = 50;
   
   // Timer simulation
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setInterval(() => {
       setSessionDuration(prev => prev + 1);
     }, 1000);
@@ -32,9 +82,9 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ team, selectedValenceIds,
   }, []);
 
   // Keyboard navigation for faster workflow
-  React.useEffect(() => {
+  useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' && currentPlayerIndex < team.players.length - 1) {
+      if (e.key === 'ArrowRight' && currentPlayerIndex < players.length - 1) {
         setCurrentPlayerIndex(prev => prev + 1);
       } else if (e.key === 'ArrowLeft' && currentPlayerIndex > 0) {
         setCurrentPlayerIndex(prev => prev - 1);
@@ -42,7 +92,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ team, selectedValenceIds,
     };
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentPlayerIndex, team.players.length]);
+  }, [currentPlayerIndex, players.length]);
 
   // Swipe gesture handlers
   const onTouchStart = (e: React.TouchEvent) => {
@@ -61,14 +111,45 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ team, selectedValenceIds,
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
     
-    if (isLeftSwipe && currentPlayerIndex < team.players.length - 1) {
+    if (isLeftSwipe && currentPlayerIndex < players.length - 1) {
       setCurrentPlayerIndex(prev => prev + 1);
     } else if (isRightSwipe && currentPlayerIndex > 0) {
       setCurrentPlayerIndex(prev => prev - 1);
     }
   };
 
-  const currentPlayer = team.players[currentPlayerIndex];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Carregando atletas...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (players.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-red-50 to-red-100">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-slate-900 mb-2">Nenhum atleta encontrado</h3>
+          <p className="text-slate-600 mb-6">
+            Não há atletas ativos neste time/categoria para avaliar.
+          </p>
+          <button
+            onClick={onCancel}
+            className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Voltar ao Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const currentPlayer = players[currentPlayerIndex];
 
   // Get existing evaluation for current player or create blank
   const currentEvaluation = useMemo(() => {
@@ -95,7 +176,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ team, selectedValenceIds,
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const progress = Math.round(((currentPlayerIndex + 1) / team.players.length) * 100);
+  const progress = Math.round(((currentPlayerIndex + 1) / players.length) * 100);
 
   return (
     <div 
@@ -139,17 +220,20 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ team, selectedValenceIds,
 
          <div className="flex flex-col items-center text-center">
             <div className="relative">
-                <img 
-                    src={currentPlayer.photoUrl} 
-                    alt={currentPlayer.name} 
-                    className="w-20 h-20 rounded-full border-4 border-blue-100 object-cover shadow-sm"
-                />
-                <div className="absolute bottom-0 right-0 bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                    #{currentPlayer.number}
+                <div className="w-20 h-20 rounded-full border-4 border-blue-100 bg-blue-100 flex items-center justify-center shadow-sm">
+                  <span className="text-blue-700 font-bold text-2xl">
+                    {currentPlayer.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                  </span>
+                </div>
+                {currentPlayer.jersey_number && (
+                  <div className="absolute bottom-0 right-0 bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    #{currentPlayer.jersey_number}
                 </div>
             </div>
             <h2 className="mt-2 text-lg font-bold text-gray-900">{currentPlayer.name}</h2>
-            <p className="text-sm text-gray-500">{currentPlayer.position} | {currentPlayer.dominantLeg}</p>
+            {currentPlayer.position && (
+              <p className="text-sm text-gray-500">{currentPlayer.position}</p>
+            )}
          </div>
 
          <button 

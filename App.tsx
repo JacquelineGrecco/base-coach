@@ -11,8 +11,8 @@ import DrillLibrary from './components/DrillLibrary';
 import Reports from './components/Reports';
 import Profile from './components/Profile';
 import TeamsContainer from './components/Teams/TeamsContainer';
-import { MOCK_TEAMS } from './constants';
 import { ViewState, Evaluation } from './types';
+import { sessionService } from './services/sessionService';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -28,45 +28,102 @@ function AppContent() {
       setIsRecoveryMode(true);
     }
   }, []);
-  // In a real app, this would be in a context or global state
-  const [activeTeam] = useState(MOCK_TEAMS[0]);
+  // Session state
   const [sessionEvaluations, setSessionEvaluations] = useState<Evaluation[]>([]);
-  const [selectedValenceIds, setSelectedValenceIds] = useState<string[]>([]);
+  const [sessionData, setSessionData] = useState<{
+    teamId: string;
+    categoryId: string | null;
+    selectedValenceIds: string[];
+  } | null>(null);
 
   const handleStartSessionSetup = () => {
     setCurrentView("SESSION_SETUP");
   };
 
-  const handleStartSession = (valenceIds: string[]) => {
-    setSelectedValenceIds(valenceIds);
+  const handleStartSession = (data: {
+    teamId: string;
+    categoryId: string | null;
+    selectedValenceIds: string[];
+  }) => {
+    setSessionData(data);
     setCurrentView("ACTIVE_SESSION");
   };
 
-  const handleEndSession = (newEvaluations: Evaluation[]) => {
-    // In a real app, this would POST to an API
-    console.log("Saving evaluations:", newEvaluations);
-    setSessionEvaluations(prev => [...prev, ...newEvaluations]);
-    setCurrentView("DASHBOARD");
+  const handleEndSession = async (newEvaluations: Evaluation[]) => {
+    if (!sessionData) return;
+
+    try {
+      // Create session record
+      const { session, error: sessionError } = await sessionService.createSession({
+        team_id: sessionData.teamId,
+        category_id: sessionData.categoryId,
+        date: new Date().toISOString(),
+        selected_valences: sessionData.selectedValenceIds,
+      });
+
+      if (sessionError || !session) {
+        alert('Erro ao salvar sessão: ' + sessionError?.message);
+        return;
+      }
+
+      // Transform and save evaluations
+      const evaluationsToSave = newEvaluations.flatMap(evaluation => 
+        Object.entries(evaluation.scores).map(([valenceId, score]) => ({
+          player_id: evaluation.playerId,
+          valence_id: valenceId,
+          score: score,
+        }))
+      );
+
+      if (evaluationsToSave.length > 0) {
+        const { error: evalError } = await sessionService.saveEvaluations(
+          session.id,
+          evaluationsToSave
+        );
+
+        if (evalError) {
+          alert('Erro ao salvar avaliações: ' + evalError.message);
+          return;
+        }
+      }
+
+      // Save to local state for Reports view
+      setSessionEvaluations(prev => [...prev, ...newEvaluations]);
+      
+      // Show success and redirect
+      alert('✅ Sessão salva com sucesso! ' + evaluationsToSave.length + ' avaliações registradas.');
+      setCurrentView("DASHBOARD");
+    } catch (error: any) {
+      console.error('Error saving session:', error);
+      alert('Erro inesperado ao salvar sessão: ' + error.message);
+    }
   };
 
   const renderView = () => {
     switch (currentView) {
       case "DASHBOARD":
-        return <Dashboard teams={MOCK_TEAMS} onStartSession={handleStartSessionSetup} />;
+        return <Dashboard 
+          onStartSession={handleStartSessionSetup} 
+          onNavigateToTeams={() => setCurrentView("TEAMS")}
+        />;
       case "SESSION_SETUP":
         return (
           <SessionSetup 
-            team={activeTeam}
             onStartSession={handleStartSession}
             onCancel={() => setCurrentView("DASHBOARD")}
           />
         );
       case "ACTIVE_SESSION":
         // We override Layout for active session to maximize screen space and focus
+        if (!sessionData) {
+          setCurrentView("DASHBOARD");
+          return null;
+        }
         return (
              <ActiveSession 
-                team={activeTeam}
-                selectedValenceIds={selectedValenceIds}
+                teamId={sessionData.teamId}
+                categoryId={sessionData.categoryId}
+                selectedValenceIds={sessionData.selectedValenceIds}
                 onEndSession={handleEndSession} 
                 onCancel={() => setCurrentView("DASHBOARD")} 
              />
@@ -74,7 +131,7 @@ function AppContent() {
       case "DRILLS":
         return <DrillLibrary />;
       case "REPORTS":
-        return <Reports team={activeTeam} evaluations={sessionEvaluations} />;
+        return <Reports evaluations={sessionEvaluations} />;
       case "PROFILE":
         return <Profile />;
       case "TEAMS":

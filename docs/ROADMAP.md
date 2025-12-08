@@ -22,11 +22,11 @@
 
 ---
 
-## 📋 Current Status (v1.0 - ✅ Complete)
+## 📋 Current Status (v1.3.0 - ✅ Complete)
 
-### ✅ Authentication & Profile (v1.0 - December 2025)
+### ✅ Authentication & Profile (v1.0.0 - December 2025)
 - ✅ Email verification required
-- ✅ Profile picture upload with interactive cropper
+- ✅ Profile picture upload with interactive cropper (resize, zoom, circular preview)
 - ✅ Bio field for coaches (500 chars)
 - ✅ Export user data (JSON)
 - ✅ Show/hide password toggles
@@ -34,6 +34,52 @@
 - ✅ Account deletion with cascade
 - ✅ Row Level Security (RLS) verified
 - ✅ Portuguese error messages
+- ✅ Auto-redirect after password reset
+- ✅ Orphaned auth user cleanup
+
+### ✅ Data Export (v1.1.0 - December 2025)
+- ✅ Export user data as CSV (multiple files: profile, teams, categories, players, sessions, evaluations)
+- ✅ Export user data as JSON
+- ✅ Format selector modal (CSV or JSON)
+- ✅ Timestamped filenames
+
+### ✅ Team & Player Management (v1.2.0 - December 2025)
+- ✅ Complete team management (create, edit, archive, delete, list)
+- ✅ Categories system (Sub-12, Sub-15, etc.)
+- ✅ Players management with hierarchy (Teams → Categories → Players)
+- ✅ Multi-level navigation
+- ✅ "Sem Categoria" for team-level players
+- ✅ Player CRUD operations (create, read, update, deactivate, delete)
+- ✅ Category CRUD operations (create, read, update, archive, restore, delete)
+- ✅ Jersey number validation (0-99, unique within team)
+- ✅ Birth date validation (5-50 years old)
+- ✅ Gender field for categories (masculino/feminino/misto)
+- ✅ Edit functionality for all entities
+- ✅ Empty states with helpful CTAs
+- ✅ Success/error messaging
+
+### ✅ Data Integrity & Validation (v1.3.0 - December 2025)
+- ✅ Unique team names per user (database constraint)
+- ✅ Mandatory gender field for categories
+- ✅ Move players between categories via edit modal
+- ✅ Season field as number input (2020-2099)
+- ✅ Position dropdown with predefined futsal positions (Goleiro, Fixo, Ala, Pivô)
+- ✅ Position database CHECK constraint for data validation
+- ✅ TypeScript PlayerPosition type for type safety
+- ✅ Cascade archival (category → players, team → categories → players)
+- ✅ 7-day auto-deletion for archived items
+- ✅ Automated cleanup via pg_cron scheduled job (runs daily at 2 AM UTC)
+- ✅ Archive/restore functionality with timestamp tracking
+- ✅ Permanent delete with strong confirmation warnings
+
+### ✅ Dashboard & UX (v1.3.0 - December 2025)
+- ✅ Real-time team and player data from database
+- ✅ Team selector for coaches with multiple teams
+- ✅ Quick action buttons ("Gerenciar Times", "Adicionar Atletas", "Criar Categorias")
+- ✅ Player roster with jersey numbers, positions, birth dates
+- ✅ Empty state handling with helpful CTAs
+- ✅ Loading states and error handling
+- ✅ Auto-refresh when switching teams
 
 ### ✅ Session Evaluation (v0.8 - Previous)
 - ✅ Session setup with max 3 valence selection
@@ -45,10 +91,25 @@
 - ✅ Mobile-first responsive design
 - ✅ Portuguese localization
 
+### ✅ Database & Infrastructure (v1.0.0 - v1.3.0)
+- ✅ Supabase integration
+- ✅ PostgreSQL database with RLS
+- ✅ 17 database migrations
+- ✅ Complete RLS policies for all tables (teams, categories, players, users)
+- ✅ Cascade delete configuration
+- ✅ Auto-cleanup function for archived items
+- ✅ User isolation enforced at database level
+- ✅ Performance indexes on key columns
+
 **Current Capability:** 
-- Secure authentication with email verification
-- Professional profile management
-- Evaluate 23 players in ~30 minutes with AI-powered reports
+- ✅ Secure authentication with email verification
+- ✅ Professional profile management with photos and data export
+- ✅ Complete team, category, and player management system
+- ✅ Hierarchical data organization (Teams → Categories → Players)
+- ✅ Data integrity with validation and constraints
+- ✅ Auto-cleanup of archived items (7 days)
+- ✅ Evaluate 23 players in ~30 minutes with AI-powered reports
+- ⏳ Session integration with real players (IN PROGRESS)
 
 ---
 
@@ -426,30 +487,75 @@ v1.0 MVP ────────> v1.5 Essential ────────> v2.0
 
 ### 1.3 Multi-Team Management
 **Priority:** 🔥 HIGH
+**Status:** ✅ PARTIALLY COMPLETE (v1.2.0 - v1.3.0)
 
 **Features:**
-- [ ] Team selector on dashboard
-- [ ] Create/edit/archive teams
+- [x] Team selector on dashboard ✅ (v1.3.0)
+- [x] Create/edit/archive teams ✅ (v1.2.0)
+- [x] Quick switch between teams ✅ (v1.3.0)
+- [x] Coach can manage multiple age groups (categories) ✅ (v1.2.0)
 - [ ] Team-specific settings:
-  - Default valences
-  - Training schedule
-  - Location/venue
-- [ ] Quick switch between teams
+  - [ ] Default valences
+  - [ ] Training schedule
+  - [ ] Location/venue
 - [ ] Cross-team comparison reports
-- [ ] Coach can manage multiple age groups (U-11, U-13, U-15)
+- [ ] Persist selected team in localStorage
 
 **Why Important:** From meeting: *"necessidade de um calendário para gerenciar múltiplos times em diferentes locais"*
 
-**Technical Considerations:**
-- Update App.tsx to support team switching
-- Persist selected team in localStorage
-- Filter all data by teamId
+**Completed in v1.2.0-v1.3.0:**
+- Complete team CRUD operations
+- Category system for age groups (Sub-12, Sub-15, etc.)
+- Team selector on Dashboard
+- Real-time data loading and filtering by team
 
-**Estimated Effort:** 1 week
+**Remaining Work:**
+- Team-specific default settings
+- Cross-team analytics
+- Persist team selection
+
+**Estimated Remaining Effort:** 3-4 days
 
 ---
 
-### 1.4 Photo Upload & Enhanced Player Profiles
+### 1.4 Dashboard Quick Actions & Player Creation Modal
+**Priority:** 🔥 HIGH
+**Status:** ⏳ IN PROGRESS
+
+**Features:**
+- [x] Quick action buttons on Dashboard ("Gerenciar Times", "Adicionar Atletas")
+- [ ] **TODO: Add "Quick Player Creation" modal** directly from Dashboard
+  - Should include ALL player fields (name, position, jersey number, birth date, notes)
+  - Category selector dropdown (showing all categories from selected team)
+  - Option to add to "Sem Categoria" (team-level)
+  - Save directly to database without leaving Dashboard
+  - Success message and auto-refresh player list
+- [ ] Similar quick modal for "Create Category"
+  - Name, age group, season, gender, notes
+  - Saves and auto-refreshes without navigation
+- [ ] Keyboard shortcuts for quick actions (Ctrl+N for new player, etc.)
+
+**Why Important:** 
+- Currently redirects to Teams section (context switch, slower workflow)
+- Coaches want to quickly add a player before session starts
+- Reduces clicks from 5+ to 2 (Dashboard → Modal → Save)
+- Better UX = faster adoption
+
+**User Story:**
+> "As a coach arriving 5 minutes before training, I need to quickly add a last-minute player to the roster without navigating through multiple screens."
+
+**Technical Considerations:**
+- Reuse existing player creation logic from `Players.tsx`
+- Create standalone `QuickPlayerModal.tsx` component
+- Pass team context from Dashboard
+- Auto-load categories for dropdown
+- Validate jersey number uniqueness (real-time)
+
+**Estimated Effort:** 2-3 days
+
+---
+
+### 1.5 Photo Upload & Enhanced Player Profiles
 **Priority:** 🟡 MEDIUM
 
 **Features:**

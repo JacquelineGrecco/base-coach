@@ -1,16 +1,98 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { VALENCES } from '../constants';
-import { Team } from '../types';
-import { ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, AlertCircle, CheckCircle2, Users, Folder } from 'lucide-react';
+import { teamService, Team } from '../services/teamService';
+import { categoryService } from '../services/categoryService';
+import { supabase } from '../lib/supabase';
 
 interface SessionSetupProps {
-  team: Team;
-  onStartSession: (selectedValenceIds: string[]) => void;
+  onStartSession: (sessionData: {
+    teamId: string;
+    categoryId: string | null;
+    selectedValenceIds: string[];
+  }) => void;
   onCancel: () => void;
 }
 
-const SessionSetup: React.FC<SessionSetupProps> = ({ team, onStartSession, onCancel }) => {
+interface Category {
+  id: string;
+  name: string;
+  gender?: string;
+  player_count?: number;
+}
+
+const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel }) => {
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [playerCount, setPlayerCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [selectedValences, setSelectedValences] = useState<string[]>([]);
+
+  useEffect(() => {
+    loadTeams();
+  }, []);
+
+  useEffect(() => {
+    if (selectedTeamId) {
+      loadCategories(selectedTeamId);
+      loadPlayerCount(selectedTeamId, selectedCategoryId);
+    }
+  }, [selectedTeamId, selectedCategoryId]);
+
+  async function loadTeams() {
+    setLoading(true);
+    const { teams: teamsData, error: teamsError } = await teamService.getTeams();
+
+    if (teamsError) {
+      setError('Erro ao carregar times: ' + teamsError.message);
+      setLoading(false);
+      return;
+    }
+
+    setTeams(teamsData || []);
+    
+    // Auto-select first team
+    if (teamsData && teamsData.length > 0) {
+      setSelectedTeamId(teamsData[0].id);
+    } else {
+      setError('Nenhum time encontrado. Crie um time primeiro.');
+    }
+    
+    setLoading(false);
+  }
+
+  async function loadCategories(teamId: string) {
+    const { categories: categoriesData } = await categoryService.getCategoriesByTeam(teamId);
+    setCategories(categoriesData || []);
+  }
+
+  async function loadPlayerCount(teamId: string, categoryId: string | null) {
+    try {
+      let query = supabase
+        .from('players')
+        .select('*', { count: 'exact', head: true })
+        .eq('team_id', teamId)
+        .eq('is_active', true);
+
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      } else {
+        // If "All players" is selected, don't filter by category
+        // But if a specific "no category" is selected, filter for null
+        if (selectedCategoryId === 'no-category') {
+          query = query.is('category_id', null);
+        }
+      }
+
+      const { count } = await query;
+      setPlayerCount(count || 0);
+    } catch (error: any) {
+      console.error('Error loading player count:', error);
+    }
+  }
 
   const toggleValence = (valenceId: string) => {
     if (selectedValences.includes(valenceId)) {
@@ -23,8 +105,13 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ team, onStartSession, onCan
   };
 
   const handleStart = () => {
-    if (selectedValences.length === 0) return;
-    onStartSession(selectedValences);
+    if (selectedValences.length === 0 || !selectedTeamId) return;
+    
+    onStartSession({
+      teamId: selectedTeamId,
+      categoryId: selectedCategoryId === 'no-category' ? null : selectedCategoryId,
+      selectedValenceIds: selectedValences,
+    });
   };
 
   // Group valences by category
@@ -36,20 +123,102 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ team, onStartSession, onCan
     return acc;
   }, {} as Record<string, typeof VALENCES>);
 
+  const selectedTeam = teams.find(t => t.id === selectedTeamId);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error || teams.length === 0) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="bg-white rounded-xl shadow-lg border border-red-200 p-12 text-center">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            {error || 'Nenhum time encontrado'}
+          </h3>
+          <p className="text-slate-600 mb-6">
+            Você precisa criar um time com atletas antes de iniciar uma sessão.
+          </p>
+          <button
+            onClick={onCancel}
+            className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            Voltar ao Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
-          <h2 className="text-2xl font-bold mb-2">Configure Training Session</h2>
-          <p className="text-blue-100">Select up to 3 criteria to evaluate during this session</p>
-          <div className="mt-4 flex items-center space-x-2">
-            <div className="px-3 py-1 bg-white/20 rounded-full text-sm font-medium">
-              {team.name}
-            </div>
-            <div className="px-3 py-1 bg-white/20 rounded-full text-sm font-medium">
-              {team.players.length} athletes
-            </div>
+          <h2 className="text-2xl font-bold mb-2">Configurar Sessão de Treino</h2>
+          <p className="text-blue-100">Selecione o time, categoria (opcional) e até 3 critérios para avaliar</p>
+        </div>
+
+        {/* Team and Category Selection */}
+        <div className="p-6 bg-slate-50 border-b border-slate-200 space-y-4">
+          {/* Team Selector */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Users className="w-4 h-4 inline mr-1" />
+              Time *
+            </label>
+            <select
+              value={selectedTeamId}
+              onChange={(e) => {
+                setSelectedTeamId(e.target.value);
+                setSelectedCategoryId(null); // Reset category when team changes
+              }}
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            >
+              {teams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name} ({team.player_count || 0} atletas)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Category Selector (Optional) */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Folder className="w-4 h-4 inline mr-1" />
+              Categoria (opcional)
+            </label>
+            <select
+              value={selectedCategoryId || ''}
+              onChange={(e) => setSelectedCategoryId(e.target.value || null)}
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            >
+              <option value="">Todos os Atletas do Time</option>
+              <option value="no-category">Sem Categoria</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name} {category.gender && `(${category.gender === 'masculino' ? '♂' : category.gender === 'feminino' ? '♀' : '⚥'})`}
+                  {category.player_count !== undefined && ` - ${category.player_count} atletas`}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500 mt-1">
+              Deixe em branco para avaliar todos os atletas do time
+            </p>
+          </div>
+
+          {/* Player Count Badge */}
+          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
+            <span className="text-sm font-medium text-slate-700">Atletas selecionados:</span>
+            <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-bold">
+              {playerCount}
+            </span>
           </div>
         </div>
 
@@ -146,20 +315,21 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ team, onStartSession, onCan
             onClick={onCancel}
             className="px-6 py-2.5 text-slate-600 hover:text-slate-900 font-medium transition-colors"
           >
-            Cancel
+            Cancelar
           </button>
           <button
             onClick={handleStart}
-            disabled={selectedValences.length === 0}
+            disabled={selectedValences.length === 0 || playerCount === 0}
             className={`
               px-8 py-2.5 rounded-lg font-semibold flex items-center transition-all
-              ${selectedValences.length === 0
+              ${selectedValences.length === 0 || playerCount === 0
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200 hover:scale-105'
               }
             `}
+            title={playerCount === 0 ? 'Adicione atletas ao time primeiro' : ''}
           >
-            Start Session
+            Iniciar Sessão
             <ChevronRight className="w-5 h-5 ml-2" />
           </button>
         </div>
@@ -167,8 +337,8 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ team, onStartSession, onCan
         {/* Helper Text */}
         <div className="px-6 py-3 bg-blue-50 border-t border-blue-100">
           <p className="text-xs text-slate-600 text-center">
-            💡 <strong>Tip:</strong> Selecting fewer criteria (1-3) allows faster evaluation during training. 
-            You can focus on different criteria in each session.
+            💡 <strong>Dica:</strong> Selecionar menos critérios (1-3) permite avaliação mais rápida durante o treino. 
+            Você pode focar em critérios diferentes em cada sessão.
           </p>
         </div>
       </div>
