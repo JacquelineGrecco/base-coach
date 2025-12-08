@@ -411,6 +411,226 @@ const Reports: React.FC = () => {
       .substring(0, 2);
   };
 
+  // Export Player Report to PDF
+  const exportPlayerReportToPDF = () => {
+    if (!selectedPlayer) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let yPos = 20;
+
+    // Title
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relatório de Desempenho', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Player Info
+    doc.setFontSize(16);
+    doc.text(selectedPlayer.name, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 8;
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const playerInfo = [
+      selectedPlayer.jersey_number ? `Camisa: #${selectedPlayer.jersey_number}` : '',
+      selectedPlayer.position ? `Posição: ${selectedPlayer.position}` : '',
+    ].filter(Boolean).join(' | ');
+    doc.text(playerInfo, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Date
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Summary Stats
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('Resumo Estatístico', 20, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total de Sessões: ${sessions.length}`, 20, yPos);
+    yPos += 6;
+    doc.text(`Critérios Avaliados: ${playerStats.length}`, 20, yPos);
+    yPos += 6;
+    const overallAvg = playerStats.length > 0 
+      ? (playerStats.reduce((sum, stat) => sum + stat.average, 0) / playerStats.length).toFixed(1)
+      : '0.0';
+    doc.text(`Média Geral: ${overallAvg}/5.0`, 20, yPos);
+    yPos += 15;
+
+    // Performance by Criterion
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Desempenho por Critério', 20, yPos);
+    yPos += 10;
+
+    // Table Header
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Critério', 20, yPos);
+    doc.text('Média', 100, yPos);
+    doc.text('Avaliações', 140, yPos);
+    doc.text('Tendência', 170, yPos);
+    yPos += 5;
+
+    // Table Body
+    doc.setFont('helvetica', 'normal');
+    playerStats.slice(0, 15).forEach((stat) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.text(stat.valence_name.substring(0, 25), 20, yPos);
+      doc.text(`${stat.average.toFixed(1)}/5.0`, 100, yPos);
+      doc.text(`${stat.count}x`, 140, yPos);
+      const trend = stat.trend > 0.1 ? '↗ Melhorando' : stat.trend < -0.1 ? '↘ Declinando' : '— Estável';
+      doc.text(trend, 170, yPos);
+      yPos += 6;
+    });
+
+    yPos += 10;
+
+    // Session History
+    if (yPos > 240) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Histórico de Sessões', 20, yPos);
+    yPos += 10;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    sessions.slice(0, 10).forEach((session) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      const date = new Date(session.date).toLocaleDateString('pt-BR');
+      const time = new Date(session.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      doc.text(`${date} às ${time} - ${session.evaluation_count} avaliações`, 20, yPos);
+      yPos += 6;
+    });
+
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, 290, { align: 'center' });
+      doc.text('BaseCoach - Sistema de Avaliação de Atletas', pageWidth / 2, 285, { align: 'center' });
+    }
+
+    // Save PDF
+    const fileName = `relatorio_${selectedPlayer.name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+  };
+
+  // Export Team Report to PDF
+  const exportTeamReportToPDF = () => {
+    const selectedTeam = teams.find(t => t.id === selectedTeamId);
+    if (!selectedTeam) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let yPos = 20;
+
+    // Title
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relatório do Time', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Team Info
+    doc.setFontSize(16);
+    doc.text(selectedTeam.name, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Date
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Summary Stats
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('Resumo Estatístico', 20, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Atletas Ativos: ${players.length}`, 20, yPos);
+    yPos += 6;
+    doc.text(`Critérios Avaliados: ${teamStats.length}`, 20, yPos);
+    yPos += 6;
+    const teamAvg = teamStats.length > 0 
+      ? (teamStats.reduce((sum, stat) => sum + stat.average, 0) / teamStats.length).toFixed(1)
+      : '0.0';
+    doc.text(`Média Geral do Time: ${teamAvg}/5.0`, 20, yPos);
+    yPos += 6;
+    if (teamStats.length > 0) {
+      doc.text(`Melhor Habilidade: ${teamStats[0].valence_name} (${teamStats[0].average.toFixed(1)}/5.0)`, 20, yPos);
+    }
+    yPos += 15;
+
+    // Performance by Criterion
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Desempenho do Time por Critério', 20, yPos);
+    yPos += 10;
+
+    // Table Header
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Critério', 20, yPos);
+    doc.text('Média', 100, yPos);
+    doc.text('Avaliações', 140, yPos);
+    doc.text('Atletas', 170, yPos);
+    yPos += 5;
+
+    // Table Body
+    doc.setFont('helvetica', 'normal');
+    teamStats.forEach((stat) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.text(stat.valence_name.substring(0, 25), 20, yPos);
+      doc.text(`${stat.average.toFixed(1)}/5.0`, 100, yPos);
+      doc.text(`${stat.count}x`, 140, yPos);
+      doc.text(`${stat.player_count}`, 170, yPos);
+      yPos += 6;
+    });
+
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, 290, { align: 'center' });
+      doc.text('BaseCoach - Sistema de Avaliação de Atletas', pageWidth / 2, 285, { align: 'center' });
+    }
+
+    // Save PDF
+    const fileName = `relatorio_time_${selectedTeam.name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+  };
+
   // Export player report to PDF
   const handleExportPDF = () => {
     if (!selectedPlayer) return;
