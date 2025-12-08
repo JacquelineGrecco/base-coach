@@ -175,15 +175,49 @@ export const teamService = {
 
   /**
    * Archive a team (soft delete)
+   * Also archives all categories and players in the team
    */
   async archiveTeam(teamId: string): Promise<{ error: Error | null }> {
     try {
+      const now = new Date().toISOString();
+      
+      // First, archive all players in this team (both with and without categories)
+      const playerUpdates: any = {
+        is_active: false,
+        archived_at: now,
+        updated_at: now,
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
+      await supabase
+        .from('players')
+        .update(playerUpdates)
+        .eq('team_id', teamId);
+
+      // Then, archive all categories in this team
+      const categoryUpdates: any = {
+        is_active: false,
+        archived_at: now,
+        updated_at: now,
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
+      await supabase
+        .from('categories')
+        .update(categoryUpdates)
+        .eq('team_id', teamId);
+
+      // Finally, archive the team itself
+      const teamUpdates: any = {
+        is_archived: true,
+        archived_at: now,
+        updated_at: now,
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
       const { error } = await supabase
         .from('teams')
-        .update({
-          is_archived: true,
-          updated_at: new Date().toISOString(),
-        } as any)
+        .update(teamUpdates)
         .eq('id', teamId);
 
       if (error) throw error;
@@ -196,15 +230,49 @@ export const teamService = {
 
   /**
    * Unarchive a team
+   * Also restores all categories and players in the team
    */
   async unarchiveTeam(teamId: string): Promise<{ error: Error | null }> {
     try {
+      const now = new Date().toISOString();
+      
+      // First, restore all players in this team
+      const playerUpdates: any = {
+        is_active: true,
+        archived_at: null,
+        updated_at: now,
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
+      await supabase
+        .from('players')
+        .update(playerUpdates)
+        .eq('team_id', teamId);
+
+      // Then, restore all categories in this team
+      const categoryUpdates: any = {
+        is_active: true,
+        archived_at: null,
+        updated_at: now,
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
+      await supabase
+        .from('categories')
+        .update(categoryUpdates)
+        .eq('team_id', teamId);
+
+      // Finally, unarchive the team itself
+      const teamUpdates: any = {
+        is_archived: false,
+        archived_at: null,
+        updated_at: now,
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
       const { error } = await supabase
         .from('teams')
-        .update({
-          is_archived: false,
-          updated_at: new Date().toISOString(),
-        } as any)
+        .update(teamUpdates)
         .eq('id', teamId);
 
       if (error) throw error;

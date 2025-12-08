@@ -129,6 +129,7 @@ export const categoryService = {
     }
   ): Promise<{ error: Error | null }> {
     try {
+      // @ts-ignore - Supabase update type inference issue
       const { error } = await supabase
         .from('categories')
         .update({
@@ -150,19 +151,32 @@ export const categoryService = {
    */
   async archiveCategory(categoryId: string): Promise<{ error: Error | null }> {
     try {
-      // First, remove category assignment from all players in this category
+      const now = new Date().toISOString();
+      
+      // First, deactivate all players in this category
+      const playerUpdates: any = { 
+        is_active: false,
+        archived_at: now,
+        updated_at: now
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
       await supabase
         .from('players')
-        .update({ category_id: null } as any)
+        .update(playerUpdates)
         .eq('category_id', categoryId);
 
       // Then archive the category
+      const categoryUpdates: any = {
+        is_active: false,
+        archived_at: now,
+        updated_at: now,
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
       const { error } = await supabase
         .from('categories')
-        .update({
-          is_active: false,
-          updated_at: new Date().toISOString(),
-        } as any)
+        .update(categoryUpdates)
         .eq('id', categoryId);
 
       if (error) throw error;
@@ -174,10 +188,59 @@ export const categoryService = {
   },
 
   /**
+   * Restore an archived category
+   */
+  async restoreCategory(categoryId: string): Promise<{ error: Error | null }> {
+    try {
+      const now = new Date().toISOString();
+      
+      // First, reactivate all players in this category
+      const playerUpdates: any = { 
+        is_active: true,
+        archived_at: null,
+        updated_at: now
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
+      await supabase
+        .from('players')
+        .update(playerUpdates)
+        .eq('category_id', categoryId);
+
+      // Then restore the category
+      const categoryUpdates: any = {
+        is_active: true,
+        archived_at: null,
+        updated_at: now,
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
+      const { error } = await supabase
+        .from('categories')
+        .update(categoryUpdates)
+        .eq('id', categoryId);
+
+      if (error) throw error;
+      return { error: null };
+    } catch (error) {
+      console.error('Restore category error:', error);
+      return { error: error as Error };
+    }
+  },
+
+  /**
    * Hard delete a category (use with caution!)
+   * This will cascade delete all players in the category due to ON DELETE CASCADE
    */
   async deleteCategory(categoryId: string): Promise<{ error: Error | null }> {
     try {
+      // Note: Players will be automatically handled by CASCADE DELETE in database
+      // But we can also explicitly delete them for clarity
+      await supabase
+        .from('players')
+        .delete()
+        .eq('category_id', categoryId);
+
       const { error } = await supabase
         .from('categories')
         .delete()
@@ -216,6 +279,7 @@ export const categoryService = {
    */
   async assignPlayerToCategory(playerId: string, categoryId: string | null): Promise<{ error: Error | null }> {
     try {
+      // @ts-ignore - Supabase update type inference issue
       const { error } = await supabase
         .from('players')
         .update({

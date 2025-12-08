@@ -71,13 +71,28 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
       return;
     }
 
+    if (!formData.gender) {
+      setError('Por favor, selecione o gênero da categoria');
+      return;
+    }
+
     setError('');
     setCreating(true);
 
-    const { category, error } = await categoryService.createCategory(teamId, formData);
+    const { category, error } = await categoryService.createCategory(teamId, {
+      name: formData.name,
+      age_group: formData.age_group || undefined,
+      season: formData.season || undefined,
+      gender: formData.gender as 'masculino' | 'feminino' | 'misto',
+      notes: formData.notes || undefined,
+    });
 
     if (error) {
-      setError('Erro ao criar categoria: ' + error.message);
+      if (error.message.includes('unique') || error.message.includes('duplicate')) {
+        setError(`Já existe uma categoria chamada "${formData.name}" neste time.`);
+      } else {
+        setError('Erro ao criar categoria: ' + error.message);
+      }
     } else {
       setSuccess('Categoria criada com sucesso!');
       setShowCreateCategory(false);
@@ -97,14 +112,28 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
   }
 
   async function handleArchiveCategory(categoryId: string) {
-    if (!confirm('Tem certeza? Os atletas desta categoria ficarão sem categoria.')) return;
+    if (!confirm('Tem certeza que deseja arquivar esta categoria?\n\nTodos os atletas desta categoria também serão arquivados.\n\n⏰ Items arquivados são excluídos permanentemente após 7 dias.')) return;
 
     const { error } = await categoryService.archiveCategory(categoryId);
 
     if (error) {
       setError('Erro ao arquivar categoria: ' + error.message);
     } else {
-      setSuccess('Categoria arquivada com sucesso!');
+      setSuccess('Categoria arquivada! Será excluída em 7 dias.');
+      loadTeamData();
+      setTimeout(() => setSuccess(''), 3000);
+    }
+  }
+
+  async function handleDeleteCategory(categoryId: string) {
+    if (!confirm('⚠️ ATENÇÃO: Esta ação é PERMANENTE!\n\nDeseja realmente EXCLUIR esta categoria?\n\nTodos os atletas desta categoria também serão EXCLUÍDOS permanentemente.\n\nEsta ação NÃO pode ser desfeita.')) return;
+
+    const { error } = await categoryService.deleteCategory(categoryId);
+
+    if (error) {
+      setError('Erro ao excluir categoria: ' + error.message);
+    } else {
+      setSuccess('Categoria e atletas excluídos permanentemente!');
       loadTeamData();
       setTimeout(() => setSuccess(''), 3000);
     }
@@ -341,10 +370,20 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
                     e.stopPropagation();
                     handleArchiveCategory(category.id);
                   }}
-                  className="flex-1 flex items-center justify-center gap-2 text-gray-600 hover:text-red-600 text-sm"
-                  title="Arquivar"
+                  className="flex-1 flex items-center justify-center gap-2 text-gray-600 hover:text-orange-600 text-sm"
+                  title="Arquivar categoria e atletas"
                 >
                   <Archive className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteCategory(category.id);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 text-gray-600 hover:text-red-600 text-sm"
+                  title="Excluir permanentemente"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -414,23 +453,26 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
                   Temporada
                 </label>
                 <input
-                  type="text"
+                  type="number"
+                  min="2020"
+                  max="2099"
                   value={formData.season}
                   onChange={(e) => setFormData({ ...formData, season: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="Ex: 2025"
+                  placeholder="2025"
                 />
               </div>
 
               {/* Gender */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Gênero
+                  Gênero *
                 </label>
                 <select
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  required
                 >
                   <option value="">Selecione...</option>
                   <option value="masculino">Masculino</option>
@@ -537,23 +579,26 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
                   Temporada
                 </label>
                 <input
-                  type="text"
+                  type="number"
+                  min="2020"
+                  max="2099"
                   value={formData.season}
                   onChange={(e) => setFormData({ ...formData, season: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="Ex: 2025"
+                  placeholder="2025"
                 />
               </div>
 
               {/* Gender */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Gênero
+                  Gênero *
                 </label>
                 <select
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  required
                 >
                   <option value="">Selecione...</option>
                   <option value="masculino">Masculino</option>
