@@ -118,6 +118,40 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
     }
   };
 
+  // Calculate currentPlayer and evaluation (must be before conditional returns)
+  const currentPlayer = players[currentPlayerIndex];
+  
+  // Get existing evaluation for current player or create blank
+  const currentEvaluation = useMemo(() => {
+    if (!currentPlayer) return null;
+    return evaluations.find(e => e.playerId === currentPlayer.id) || {
+      playerId: currentPlayer.id,
+      sessionId: 'temp-session',
+      scores: {},
+      timestamp: Date.now()
+    };
+  }, [evaluations, currentPlayer?.id, currentPlayer]);
+
+  const handleScore = (valenceId: string, score: number) => {
+    if (!currentPlayer || !currentEvaluation) return;
+    
+    setEvaluations(prev => {
+      const otherEvals = prev.filter(e => e.playerId !== currentPlayer.id);
+      const newScores = { ...currentEvaluation.scores, [valenceId]: score };
+      const updatedEval = { ...currentEvaluation, scores: newScores };
+      return [...otherEvals, updatedEval];
+    });
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const progress = Math.round(((currentPlayerIndex + 1) / players.length) * 100);
+
+  // Early returns AFTER all hooks
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-blue-100">
@@ -149,34 +183,23 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
     );
   }
 
-  const currentPlayer = players[currentPlayerIndex];
-
-  // Get existing evaluation for current player or create blank
-  const currentEvaluation = useMemo(() => {
-    return evaluations.find(e => e.playerId === currentPlayer.id) || {
-      playerId: currentPlayer.id,
-      sessionId: 'temp-session',
-      scores: {},
-      timestamp: Date.now()
-    };
-  }, [evaluations, currentPlayer.id]);
-
-  const handleScore = (valenceId: string, score: number) => {
-    setEvaluations(prev => {
-      const otherEvals = prev.filter(e => e.playerId !== currentPlayer.id);
-      const newScores = { ...currentEvaluation.scores, [valenceId]: score };
-      const updatedEval = { ...currentEvaluation, scores: newScores };
-      return [...otherEvals, updatedEval];
-    });
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const progress = Math.round(((currentPlayerIndex + 1) / players.length) * 100);
+  // Render logic - currentPlayer should exist at this point
+  if (!currentPlayer || !currentEvaluation) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-red-50 to-red-100">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-slate-900 mb-2">Erro ao carregar atleta</h3>
+          <button
+            onClick={onCancel}
+            className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Voltar ao Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
