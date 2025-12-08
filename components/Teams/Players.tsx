@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, User, Edit2, Trash2, AlertCircle, CheckCircle, UserX } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
+// Futsal positions
+export type PlayerPosition = 'Goleiro' | 'Fixo' | 'Ala' | 'Pivô';
+
 interface Player {
   id: string;
   team_id: string;
   category_id: string | null;
   name: string;
-  position?: string;
+  position?: PlayerPosition | '';
   jersey_number?: number;
   birth_date?: string;
   notes?: string;
@@ -23,8 +26,15 @@ interface PlayersProps {
   onBack: () => void;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  gender?: string;
+}
+
 const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onBack }) => {
   const [players, setPlayers] = useState<Player[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -39,12 +49,14 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
     jersey_number: '',
     birth_date: '',
     notes: '',
+    category_id: categoryId || '',
   });
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     loadPlayers();
+    loadCategories();
   }, [teamId, categoryId]);
 
   async function loadPlayers() {
@@ -74,6 +86,22 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
     }
     
     setLoading(false);
+  }
+
+  async function loadCategories() {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name, gender')
+        .eq('team_id', teamId)
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar categorias:', error);
+    }
   }
 
   async function validateJerseyNumber(jerseyNumber: string, excludePlayerId?: string): Promise<boolean> {
@@ -211,6 +239,7 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
       jersey_number: player.jersey_number?.toString() || '',
       birth_date: player.birth_date || '',
       notes: player.notes || '',
+      category_id: player.category_id || '',
     });
     setShowEditModal(true);
   }
@@ -240,21 +269,30 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
     setUpdating(true);
 
     try {
+      const updates: any = {
+        name: formData.name,
+        position: formData.position || null,
+        jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
+        birth_date: formData.birth_date || null,
+        notes: formData.notes || null,
+        category_id: formData.category_id || null,
+        updated_at: new Date().toISOString(),
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
       const { error } = await supabase
         .from('players')
-        .update({
-          name: formData.name,
-          position: formData.position || null,
-          jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
-          birth_date: formData.birth_date || null,
-          notes: formData.notes || null,
-          updated_at: new Date().toISOString(),
-        } as any)
+        .update(updates)
         .eq('id', editingPlayer.id);
 
       if (error) throw error;
 
-      setSuccess('Atleta atualizado com sucesso!');
+      // Check if player was moved to different category
+      const wasMoved = editingPlayer.category_id !== (formData.category_id || null);
+      
+      setSuccess(wasMoved 
+        ? 'Atleta atualizado e movido de categoria com sucesso!'
+        : 'Atleta atualizado com sucesso!');
       setShowEditModal(false);
       setEditingPlayer(null);
       setFormData({
@@ -263,6 +301,7 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
         jersey_number: '',
         birth_date: '',
         notes: '',
+        category_id: categoryId || '',
       });
       loadPlayers();
       
@@ -275,20 +314,26 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
   }
 
   async function handleDeactivatePlayer(playerId: string, playerName: string) {
-    if (!confirm(`Desativar ${playerName}? O atleta será removido da lista ativa.`)) return;
+    if (!confirm(`Desativar ${playerName}?\n\nO atleta será removido da lista ativa e será permanentemente excluído após 7 dias.`)) return;
 
     try {
+      const now = new Date().toISOString();
+      
+      const updates: any = { 
+        is_active: false,
+        archived_at: now,
+        updated_at: now
+      };
+      
+      // @ts-ignore - Supabase update type inference issue
       const { error } = await supabase
         .from('players')
-        .update({ 
-          is_active: false,
-          updated_at: new Date().toISOString() 
-        } as any)
+        .update(updates)
         .eq('id', playerId);
 
       if (error) throw error;
 
-      setSuccess('Atleta desativado com sucesso!');
+      setSuccess('Atleta desativado! Será excluído em 7 dias.');
       loadPlayers();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
@@ -531,14 +576,42 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Posição
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.position}
                     onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="Pivô"
-                  />
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="Goleiro">Goleiro</option>
+                    <option value="Fixo">Fixo</option>
+                    <option value="Ala">Ala</option>
+                    <option value="Pivô">Pivô</option>
+                  </select>
                 </div>
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Categoria
+                </label>
+                <select
+                  value={formData.category_id}
+                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="">Sem Categoria</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name} {cat.gender && `(${cat.gender === 'masculino' ? '♂' : cat.gender === 'feminino' ? '♀' : '⚥'})`}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.category_id && formData.category_id !== (categoryId || '') 
+                    ? '⚠️ Atleta será movido para outra categoria'
+                    : 'Altere para mover o atleta para outra categoria'}
+                </p>
               </div>
 
               {/* Birth Date */}
@@ -655,13 +728,17 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Posição
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.position}
                     onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="Pivô"
-                  />
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="Goleiro">Goleiro</option>
+                    <option value="Fixo">Fixo</option>
+                    <option value="Ala">Ala</option>
+                    <option value="Pivô">Pivô</option>
+                  </select>
                 </div>
               </div>
 

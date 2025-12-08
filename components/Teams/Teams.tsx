@@ -53,13 +53,29 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
       return;
     }
 
+    // Check if team name already exists
+    const existingTeam = teams.find(
+      t => t.name.toLowerCase() === formData.name.trim().toLowerCase() && !t.is_archived
+    );
+    
+    if (existingTeam) {
+      setError(`Já existe um time chamado "${formData.name}". Escolha outro nome.`);
+      setCreating(false);
+      return;
+    }
+
     setError('');
     setCreating(true);
 
     const { team, error } = await teamService.createTeam(formData);
 
     if (error) {
-      setError('Erro ao criar time: ' + error.message);
+      // Handle unique constraint error from database
+      if (error.message.includes('unique') || error.message.includes('duplicate')) {
+        setError(`Já existe um time chamado "${formData.name}". Escolha outro nome.`);
+      } else {
+        setError('Erro ao criar time: ' + error.message);
+      }
     } else {
       setSuccess('Time criado com sucesso!');
       setShowCreateModal(false);
@@ -79,14 +95,14 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
   }
 
   async function handleArchiveTeam(teamId: string) {
-    if (!confirm('Tem certeza que deseja arquivar este time?')) return;
+    if (!confirm('Tem certeza que deseja arquivar este time?\n\n⚠️ TODAS as categorias e atletas deste time também serão arquivados.\n\n⏰ Tudo será excluído permanentemente após 7 dias.')) return;
 
     const { error } = await teamService.archiveTeam(teamId);
 
     if (error) {
       setError('Erro ao arquivar time: ' + error.message);
     } else {
-      setSuccess('Time arquivado com sucesso!');
+      setSuccess('Time, categorias e atletas arquivados! Excluídos em 7 dias.');
       loadTeams();
       setTimeout(() => setSuccess(''), 3000);
     }
@@ -98,7 +114,7 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
     if (error) {
       setError('Erro ao desarquivar time: ' + error.message);
     } else {
-      setSuccess('Time desarquivado com sucesso!');
+      setSuccess('Time, categorias e atletas restaurados!');
       loadTeams();
       setTimeout(() => setSuccess(''), 3000);
     }
@@ -388,11 +404,13 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
                   Temporada
                 </label>
                 <input
-                  type="text"
+                  type="number"
+                  min="2020"
+                  max="2099"
                   value={formData.season}
                   onChange={(e) => setFormData({ ...formData, season: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="Ex: 2025"
+                  placeholder="2025"
                 />
               </div>
 
@@ -499,11 +517,13 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail }) => {
                   Temporada
                 </label>
                 <input
-                  type="text"
+                  type="number"
+                  min="2020"
+                  max="2099"
                   value={formData.season}
                   onChange={(e) => setFormData({ ...formData, season: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="Ex: 2025"
+                  placeholder="2025"
                 />
               </div>
 

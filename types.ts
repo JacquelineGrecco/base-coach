@@ -1,3 +1,7 @@
+// Futsal player positions
+export type PlayerPosition = 'Goleiro' | 'Fixo' | 'Ala' | 'Pivô';
+
+// Legacy Position enum (kept for backwards compatibility)
 export enum Position {
   GOALKEEPER = "GK",
   FIXO = "Fixo",
@@ -69,3 +73,6 @@ export interface Drill {
 }
 
 export type ViewState = "DASHBOARD" | "SESSION_SETUP" | "ACTIVE_SESSION" | "REPORTS" | "DRILLS" | "PROFILE" | "TEAMS";
+
+// Team management navigation
+export type TeamView = "LIST" | "DETAIL" | "PLAYERS";
