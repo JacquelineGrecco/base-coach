@@ -51,9 +51,9 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
         <nav className="flex-1 p-4 space-y-2">
             <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
             <NavItem view="TEAMS" icon={Users} label="Times" />
-            <NavItem view="ACTIVE_SESSION" icon={PlayCircle} label="Live Session" />
-            <NavItem view="DRILLS" icon={BookOpen} label="Drill Library" />
-            <NavItem view="REPORTS" icon={BarChart2} label="Reports" />
+            <NavItem view="SESSION_SETUP" icon={PlayCircle} label="Sessão ao Vivo" />
+            <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
+            <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
             <NavItem view="PROFILE" icon={Settings} label="Configurações" />
         </nav>
 
@@ -90,9 +90,10 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
                     </button>
                 </div>
                 <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
-                <NavItem view="ACTIVE_SESSION" icon={PlayCircle} label="Live Session" />
-                <NavItem view="DRILLS" icon={BookOpen} label="Drill Library" />
-                <NavItem view="REPORTS" icon={BarChart2} label="Reports" />
+                <NavItem view="TEAMS" icon={Users} label="Times" />
+                <NavItem view="SESSION_SETUP" icon={PlayCircle} label="Sessão ao Vivo" />
+                <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
+                <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
                 <NavItem view="PROFILE" icon={Settings} label="Configurações" />
                 <div className="pt-4 mt-auto">
                   <button 
