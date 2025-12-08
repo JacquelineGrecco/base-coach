@@ -1,6 +1,6 @@
 # BaseCoach - Development Phases Roadmap
 
-## 🎯 Current Status: v1.5.0
+## 🎯 Current Status: v1.7.0
 **Last Updated:** December 8, 2024
 
 ---
@@ -42,13 +42,42 @@
 - ✅ Progress bars and visual metrics
 - ✅ Migration 020 (allow zero scores)
 
+### Phase 5: Reports Phase 2 (v1.6.0)
+- ✅ Evolution tracking with line charts
+- ✅ Session-to-session comparison
+- ✅ Date range filtering (7/30/90 days, all)
+- ✅ PDF export for player and team reports
+- ✅ AI-powered insights with Gemini
+- ✅ Share reports functionality structure
+- ✅ Professional multi-page PDFs
+
+### Phase 6: Session Enhancements (v1.7.0)
+- ✅ Timer & stopwatch functionality
+- ✅ Pause/Resume session capability
+- ✅ Session notes (general and player-specific)
+- ✅ Database migrations for sessions
+- ✅ Player observation notes
+- ⏳ Media upload (deferred - needs Supabase Storage)
+- ⏳ Session templates (deferred)
+- ⏳ Attendance tracking (deferred)
+
+### Phase 7: Mobile Responsiveness (v1.7.0)
+- ✅ PWA manifest and meta tags
+- ✅ Install as app capability
+- ✅ Mobile-responsive layouts verified
+- ✅ Touch-friendly UI elements
+- ✅ Swipe gestures in ActiveSession
+- ✅ iOS web app support
+- ⏳ Offline mode (future)
+- ⏳ Push notifications (future)
+
 ---
 
 ## 🚀 Upcoming Phases (Priority Order)
 
-### **NEXT:** Phase 5: Reports Phase 2 - Advanced Analytics
-**Target Version:** v1.6.0  
-**Status:** 🔄 Up Next
+### **NEXT:** Phase 8: Drill Library Enhancement
+**Target Version:** v1.8.0  
+**Status:** 📚 Future
 
 #### Features to Implement:
 1. **Session-to-Session Comparison**
@@ -232,6 +261,8 @@
 
 | Version | Release Date | Description |
 |---------|--------------|-------------|
+| v1.7.0 | Dec 8, 2024 | Session Enhancements + Mobile/PWA |
+| v1.6.0 | Dec 8, 2024 | Reports Phase 2 - AI & PDF Export |
 | v1.5.0 | Dec 8, 2024 | Reports Phase 1 complete |
 | v1.3.1 | Dec 8, 2024 | Session integration fixes |
 | v1.3.0 | Dec 8, 2024 | Team & Player Management |
@@ -264,7 +295,20 @@
 
 ---
 
-**Last Phase Completed:** Reports Phase 1 (v1.5.0)  
-**Next Phase:** Reports Phase 2 - Advanced Analytics (v1.6.0)  
+**Last Phase Completed:** Session Enhancements & Mobile (v1.7.0)  
+**Next Phase:** Fixes & Improvements + Drill Library (v1.8.0)  
 **Current Branch:** `main`
+
+---
+
+## 🐛 Fixes & Improvements Branch
+
+Create a `fix/improvements` branch for:
+- Bug fixes from testing
+- UI/UX polish
+- Performance optimizations
+- Database query improvements
+- Error handling enhancements
+
+This branch can be continuously updated and merged as needed.
 
