@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users, Download, FileText, Brain, Sparkles, Target, Lightbulb } from 'lucide-react';
+import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users, Download, FileText, Brain, Sparkles, Target, Lightbulb, Share2, Link, Check } from 'lucide-react';
 import { VALENCES } from '../constants';
 import { supabase } from '../lib/supabase';
 import { sessionService, SessionEvaluation } from '../services/sessionService';
@@ -55,6 +55,7 @@ const Reports: React.FC = () => {
   const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'last7' | 'last30' | 'last90'>('all');
   const [aiInsights, setAiInsights] = useState<PlayerInsights | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
 
   // Load teams on mount
   useEffect(() => {
@@ -574,6 +575,56 @@ const Reports: React.FC = () => {
     }
   };
 
+  // Share player report
+  const handleShareReport = async () => {
+    if (!selectedPlayer) return;
+
+    const reportText = `📊 Relatório de Desempenho - ${selectedPlayer.name}
+
+${selectedPlayer.jersey_number ? `Número: #${selectedPlayer.jersey_number}` : ''}
+${selectedPlayer.position ? `Posição: ${selectedPlayer.position}` : ''}
+${teams.find(t => t.id === selectedTeamId)?.name ? `Time: ${teams.find(t => t.id === selectedTeamId)?.name}` : ''}
+
+📈 Resumo:
+• Média Geral: ${playerStats.length > 0 && playerStats.reduce((sum, stat) => sum + stat.average, 0) > 0
+      ? (playerStats.reduce((sum, stat) => sum + stat.average, 0) / playerStats.length).toFixed(1)
+      : '0.0'} / 5.0
+• Sessões Completadas: ${sessions.length}
+• Critérios Avaliados: ${playerStats.length}
+
+🏆 Melhor Habilidade: ${playerStats.length > 0 ? playerStats.reduce((max, stat) => stat.average > max.average ? stat : max).valence_name : 'N/A'} (${playerStats.length > 0 ? playerStats.reduce((max, stat) => stat.average > max.average ? stat : max).average.toFixed(1) : '0.0'}/5.0)
+
+📅 Última Atualização: ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+
+Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
+
+    // Try native share first (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Relatório - ${selectedPlayer.name}`,
+          text: reportText,
+        });
+        setShareSuccess(true);
+        setTimeout(() => setShareSuccess(false), 3000);
+        return;
+      } catch (err) {
+        // User cancelled or share failed, fall back to clipboard
+        console.log('Share cancelled');
+      }
+    }
+
+    // Fallback to clipboard
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setShareSuccess(true);
+      setTimeout(() => setShareSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      alert('Não foi possível copiar o relatório. Por favor, tente novamente.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -910,13 +961,34 @@ const Reports: React.FC = () => {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <button
-                onClick={handleExportPDF}
-                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                <span className="text-sm font-medium">Exportar PDF</span>
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExportPDF}
+                  className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+                  title="Exportar como PDF"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="text-sm font-medium">PDF</span>
+                </button>
+                <button
+                  onClick={handleShareReport}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                    shareSuccess 
+                      ? 'bg-green-500/30' 
+                      : 'bg-white/20 hover:bg-white/30'
+                  }`}
+                  title="Compartilhar relatório"
+                >
+                  {shareSuccess ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Share2 className="w-4 h-4" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {shareSuccess ? 'Copiado!' : 'Compartilhar'}
+                  </span>
+                </button>
+              </div>
               <div className="text-center">
                 <div className="text-2xl font-bold">{sessions.length}</div>
                 <div className="text-xs text-blue-100">Sessões</div>
