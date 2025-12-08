@@ -28,17 +28,24 @@ function AppContent() {
       setIsRecoveryMode(true);
     }
   }, []);
-  // In a real app, this would be in a context or global state
-  const [activeTeam] = useState(MOCK_TEAMS[0]);
+  // Session state
   const [sessionEvaluations, setSessionEvaluations] = useState<Evaluation[]>([]);
-  const [selectedValenceIds, setSelectedValenceIds] = useState<string[]>([]);
+  const [sessionData, setSessionData] = useState<{
+    teamId: string;
+    categoryId: string | null;
+    selectedValenceIds: string[];
+  } | null>(null);
 
   const handleStartSessionSetup = () => {
     setCurrentView("SESSION_SETUP");
   };
 
-  const handleStartSession = (valenceIds: string[]) => {
-    setSelectedValenceIds(valenceIds);
+  const handleStartSession = (data: {
+    teamId: string;
+    categoryId: string | null;
+    selectedValenceIds: string[];
+  }) => {
+    setSessionData(data);
     setCurrentView("ACTIVE_SESSION");
   };
 
@@ -59,17 +66,21 @@ function AppContent() {
       case "SESSION_SETUP":
         return (
           <SessionSetup 
-            team={activeTeam}
             onStartSession={handleStartSession}
             onCancel={() => setCurrentView("DASHBOARD")}
           />
         );
       case "ACTIVE_SESSION":
         // We override Layout for active session to maximize screen space and focus
+        if (!sessionData) {
+          setCurrentView("DASHBOARD");
+          return null;
+        }
         return (
              <ActiveSession 
-                team={activeTeam}
-                selectedValenceIds={selectedValenceIds}
+                teamId={sessionData.teamId}
+                categoryId={sessionData.categoryId}
+                selectedValenceIds={sessionData.selectedValenceIds}
                 onEndSession={handleEndSession} 
                 onCancel={() => setCurrentView("DASHBOARD")} 
              />
@@ -77,7 +88,7 @@ function AppContent() {
       case "DRILLS":
         return <DrillLibrary />;
       case "REPORTS":
-        return <Reports team={activeTeam} evaluations={sessionEvaluations} />;
+        return <Reports evaluations={sessionEvaluations} />;
       case "PROFILE":
         return <Profile />;
       case "TEAMS":
