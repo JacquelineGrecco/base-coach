@@ -70,7 +70,7 @@ function AppContent() {
       const evaluationsToSave = newEvaluations.flatMap(evaluation => 
         Object.entries(evaluation.scores).map(([valenceId, score]) => ({
           player_id: evaluation.playerId,
-          valence_id: valenceId,
+          valence: valenceId, // Changed from valence_id to valence (matches DB schema)
           score: score,
         }))
       );
