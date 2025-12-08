@@ -89,3 +89,87 @@ export const analyzePlayerStats = async (playerName: string, statsSummary: strin
         return "Analysis unavailable.";
     }
 }
+
+export interface PlayerInsights {
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  overallAssessment: string;
+}
+
+export const generatePlayerInsights = async (
+  playerName: string,
+  playerStats: Array<{ valence_name: string; average: number; trend: number; count: number }>,
+  sessionCount: number
+): Promise<PlayerInsights> => {
+  try {
+    const client = getGeminiClient();
+    
+    const statsText = playerStats.map(stat => 
+      `- ${stat.valence_name}: ${stat.average.toFixed(1)}/5.0 (${stat.count} avaliações, tendência: ${stat.trend > 0 ? '+' : ''}${stat.trend.toFixed(1)})`
+    ).join('\n');
+
+    const prompt = `Você é um treinador profissional de futsal com anos de experiência. 
+Analise o desempenho do atleta ${playerName} com base nos seguintes dados:
+
+Total de Sessões: ${sessionCount}
+Desempenho por Critério:
+${statsText}
+
+Forneça uma análise detalhada em português incluindo:
+1. Pontos Fortes (2-3 habilidades onde o atleta se destaca)
+2. Pontos a Melhorar (2-3 áreas que precisam de atenção)
+3. Recomendações de Treino (3-4 sugestões específicas e práticas)
+4. Avaliação Geral (1 parágrafo resumindo o desenvolvimento do atleta)
+
+Seja específico, construtivo e focado em ações práticas que o atleta pode tomar.`;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            strengths: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            weaknesses: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            recommendations: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            overallAssessment: { type: Type.STRING }
+          },
+          required: ["strengths", "weaknesses", "recommendations", "overallAssessment"]
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) {
+      return {
+        strengths: [],
+        weaknesses: [],
+        recommendations: [],
+        overallAssessment: "Não foi possível gerar análise no momento."
+      };
+    }
+
+    return JSON.parse(text);
+
+  } catch (error) {
+    console.error("Error generating player insights:", error);
+    return {
+      strengths: ["Análise não disponível"],
+      weaknesses: ["Análise não disponível"],
+      recommendations: ["Por favor, tente novamente mais tarde"],
+      overallAssessment: "Não foi possível gerar insights no momento. Verifique se a chave da API Gemini está configurada corretamente."
+    };
+  }
+};

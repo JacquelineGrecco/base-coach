@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users } from 'lucide-react';
+import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users, Download, FileText, Brain, Sparkles, Target, Lightbulb, Share2, Link, Check } from 'lucide-react';
 import { VALENCES } from '../constants';
 import { supabase } from '../lib/supabase';
 import { sessionService, SessionEvaluation } from '../services/sessionService';
 import { teamService, Team } from '../services/teamService';
+import jsPDF from 'jspdf';
+import { generatePlayerInsights, PlayerInsights } from '../services/geminiService';
 
 interface Player {
   id: string;
@@ -30,6 +32,12 @@ interface SessionHistory {
   evaluation_count: number;
 }
 
+interface EvolutionData {
+  date: string;
+  sessionId: string;
+  [key: string]: string | number; // Dynamic keys for each valence
+}
+
 const Reports: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
@@ -40,7 +48,14 @@ const Reports: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [viewMode, setViewMode] = useState<'team' | 'player'>('team'); // Team overview or individual player
+  const [playerViewMode, setPlayerViewMode] = useState<'overview' | 'evolution'>('overview'); // Player sub-view
   const [teamStats, setTeamStats] = useState<any[]>([]);
+  const [evolutionData, setEvolutionData] = useState<EvolutionData[]>([]);
+  const [selectedValenceForEvolution, setSelectedValenceForEvolution] = useState<string>('');
+  const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'last7' | 'last30' | 'last90'>('all');
+  const [aiInsights, setAiInsights] = useState<PlayerInsights | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
 
   // Load teams on mount
   useEffect(() => {
@@ -59,6 +74,7 @@ const Reports: React.FC = () => {
   useEffect(() => {
     if (selectedPlayerId) {
       loadPlayerData(selectedPlayerId);
+      loadEvolutionData(selectedPlayerId);
     }
   }, [selectedPlayerId]);
 
@@ -267,6 +283,84 @@ const Reports: React.FC = () => {
     }
   }
 
+  async function loadEvolutionData(playerId: string) {
+    try {
+      // Get all evaluations for this player with session info
+      const { data: evaluations, error: evalError } = await supabase
+        .from('evaluations')
+        .select(`
+          *,
+          sessions(id, date)
+        `)
+        .eq('player_id', playerId)
+        .order('created_at', { ascending: true });
+
+      if (evalError) throw evalError;
+
+      if (!evaluations || evaluations.length === 0) {
+        setEvolutionData([]);
+        return;
+      }
+
+      // Group evaluations by session
+      const sessionMap = new Map<string, any>();
+      
+      (evaluations as any[]).forEach((evaluation: any) => {
+        if (!evaluation.sessions) return;
+        
+        const sessionId = evaluation.sessions.id;
+        const sessionDate = evaluation.sessions.date;
+        
+        if (!sessionMap.has(sessionId)) {
+          sessionMap.set(sessionId, {
+            sessionId,
+            date: sessionDate,
+            scores: {}
+          });
+        }
+        
+        const session = sessionMap.get(sessionId);
+        const valenceId = evaluation.valence_id;
+        
+        if (!session.scores[valenceId]) {
+          session.scores[valenceId] = [];
+        }
+        
+        if (evaluation.score > 0) { // Exclude 0 scores
+          session.scores[valenceId].push(evaluation.score);
+        }
+      });
+
+      // Calculate averages and format for chart
+      const evolutionArray: EvolutionData[] = Array.from(sessionMap.values()).map(session => {
+        const dataPoint: EvolutionData = {
+          date: new Date(session.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          sessionId: session.sessionId
+        };
+        
+        // Add average score for each valence
+        Object.entries(session.scores).forEach(([valenceId, scores]: [string, any]) => {
+          const average = scores.length > 0 
+            ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length 
+            : 0;
+          dataPoint[valenceId] = Number(average.toFixed(1));
+        });
+        
+        return dataPoint;
+      });
+
+      setEvolutionData(evolutionArray);
+      
+      // Auto-select first valence for evolution chart
+      if (playerStats.length > 0 && !selectedValenceForEvolution) {
+        setSelectedValenceForEvolution(playerStats[0].valence_id);
+      }
+
+    } catch (err: any) {
+      console.error('Error loading evolution data:', err);
+    }
+  }
+
   // Prepare radar chart data
   const radarChartData = useMemo(() => {
     return playerStats.map(stat => ({
@@ -275,6 +369,34 @@ const Reports: React.FC = () => {
       fullMark: 5,
     }));
   }, [playerStats]);
+
+  // Filter evolution data by date range
+  const filteredEvolutionData = useMemo(() => {
+    if (dateRangeFilter === 'all') return evolutionData;
+    
+    const now = new Date();
+    const cutoffDate = new Date();
+    
+    switch (dateRangeFilter) {
+      case 'last7':
+        cutoffDate.setDate(now.getDate() - 7);
+        break;
+      case 'last30':
+        cutoffDate.setDate(now.getDate() - 30);
+        break;
+      case 'last90':
+        cutoffDate.setDate(now.getDate() - 90);
+        break;
+    }
+    
+    return evolutionData.filter(data => {
+      // Parse the date from DD/MM format
+      const [day, month] = data.date.split('/').map(Number);
+      const year = now.getFullYear();
+      const dataDate = new Date(year, month - 1, day);
+      return dataDate >= cutoffDate;
+    });
+  }, [evolutionData, dateRangeFilter]);
 
   // Get selected player object
   const selectedPlayer = players.find(p => p.id === selectedPlayerId);
@@ -287,6 +409,440 @@ const Reports: React.FC = () => {
       .join('')
       .toUpperCase()
       .substring(0, 2);
+  };
+
+  // Export Player Report to PDF
+  const exportPlayerReportToPDF = () => {
+    if (!selectedPlayer) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let yPos = 20;
+
+    // Title
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relatório de Desempenho', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Player Info
+    doc.setFontSize(16);
+    doc.text(selectedPlayer.name, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 8;
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const playerInfo = [
+      selectedPlayer.jersey_number ? `Camisa: #${selectedPlayer.jersey_number}` : '',
+      selectedPlayer.position ? `Posição: ${selectedPlayer.position}` : '',
+    ].filter(Boolean).join(' | ');
+    doc.text(playerInfo, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Date
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Summary Stats
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('Resumo Estatístico', 20, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total de Sessões: ${sessions.length}`, 20, yPos);
+    yPos += 6;
+    doc.text(`Critérios Avaliados: ${playerStats.length}`, 20, yPos);
+    yPos += 6;
+    const overallAvg = playerStats.length > 0 
+      ? (playerStats.reduce((sum, stat) => sum + stat.average, 0) / playerStats.length).toFixed(1)
+      : '0.0';
+    doc.text(`Média Geral: ${overallAvg}/5.0`, 20, yPos);
+    yPos += 15;
+
+    // Performance by Criterion
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Desempenho por Critério', 20, yPos);
+    yPos += 10;
+
+    // Table Header
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Critério', 20, yPos);
+    doc.text('Média', 100, yPos);
+    doc.text('Avaliações', 140, yPos);
+    doc.text('Tendência', 170, yPos);
+    yPos += 5;
+
+    // Table Body
+    doc.setFont('helvetica', 'normal');
+    playerStats.slice(0, 15).forEach((stat) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.text(stat.valence_name.substring(0, 25), 20, yPos);
+      doc.text(`${stat.average.toFixed(1)}/5.0`, 100, yPos);
+      doc.text(`${stat.count}x`, 140, yPos);
+      const trend = stat.trend > 0.1 ? '↗ Melhorando' : stat.trend < -0.1 ? '↘ Declinando' : '— Estável';
+      doc.text(trend, 170, yPos);
+      yPos += 6;
+    });
+
+    yPos += 10;
+
+    // Session History
+    if (yPos > 240) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Histórico de Sessões', 20, yPos);
+    yPos += 10;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    sessions.slice(0, 10).forEach((session) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      const date = new Date(session.date).toLocaleDateString('pt-BR');
+      const time = new Date(session.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      doc.text(`${date} às ${time} - ${session.evaluation_count} avaliações`, 20, yPos);
+      yPos += 6;
+    });
+
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, 290, { align: 'center' });
+      doc.text('BaseCoach - Sistema de Avaliação de Atletas', pageWidth / 2, 285, { align: 'center' });
+    }
+
+    // Save PDF
+    const fileName = `relatorio_${selectedPlayer.name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+  };
+
+  // Export Team Report to PDF
+  const exportTeamReportToPDF = () => {
+    const selectedTeam = teams.find(t => t.id === selectedTeamId);
+    if (!selectedTeam) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let yPos = 20;
+
+    // Title
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relatório do Time', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Team Info
+    doc.setFontSize(16);
+    doc.text(selectedTeam.name, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Date
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Summary Stats
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('Resumo Estatístico', 20, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Atletas Ativos: ${players.length}`, 20, yPos);
+    yPos += 6;
+    doc.text(`Critérios Avaliados: ${teamStats.length}`, 20, yPos);
+    yPos += 6;
+    const teamAvg = teamStats.length > 0 
+      ? (teamStats.reduce((sum, stat) => sum + stat.average, 0) / teamStats.length).toFixed(1)
+      : '0.0';
+    doc.text(`Média Geral do Time: ${teamAvg}/5.0`, 20, yPos);
+    yPos += 6;
+    if (teamStats.length > 0) {
+      doc.text(`Melhor Habilidade: ${teamStats[0].valence_name} (${teamStats[0].average.toFixed(1)}/5.0)`, 20, yPos);
+    }
+    yPos += 15;
+
+    // Performance by Criterion
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Desempenho do Time por Critério', 20, yPos);
+    yPos += 10;
+
+    // Table Header
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Critério', 20, yPos);
+    doc.text('Média', 100, yPos);
+    doc.text('Avaliações', 140, yPos);
+    doc.text('Atletas', 170, yPos);
+    yPos += 5;
+
+    // Table Body
+    doc.setFont('helvetica', 'normal');
+    teamStats.forEach((stat) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.text(stat.valence_name.substring(0, 25), 20, yPos);
+      doc.text(`${stat.average.toFixed(1)}/5.0`, 100, yPos);
+      doc.text(`${stat.count}x`, 140, yPos);
+      doc.text(`${stat.player_count}`, 170, yPos);
+      yPos += 6;
+    });
+
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, 290, { align: 'center' });
+      doc.text('BaseCoach - Sistema de Avaliação de Atletas', pageWidth / 2, 285, { align: 'center' });
+    }
+
+    // Save PDF
+    const fileName = `relatorio_time_${selectedTeam.name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+  };
+
+  // Export player report to PDF
+  const handleExportPDF = () => {
+    if (!selectedPlayer) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    let yPosition = 20;
+
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(37, 99, 235); // Blue
+    doc.text('BaseCoach - Relatório do Atleta', pageWidth / 2, yPosition, { align: 'center' });
+    
+    yPosition += 15;
+    doc.setFontSize(16);
+    doc.setTextColor(0, 0, 0);
+    doc.text(selectedPlayer.name, pageWidth / 2, yPosition, { align: 'center' });
+    
+    yPosition += 8;
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    const playerInfo = [
+      selectedPlayer.jersey_number ? `#${selectedPlayer.jersey_number}` : '',
+      selectedPlayer.position || ''
+    ].filter(Boolean).join(' - ');
+    if (playerInfo) {
+      doc.text(playerInfo, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 8;
+    }
+
+    const currentTeam = teams.find(t => t.id === selectedTeamId);
+    if (currentTeam) {
+      doc.text(currentTeam.name, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
+    }
+
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, yPosition, { align: 'center' });
+    
+    yPosition += 15;
+
+    // Summary Stats
+    doc.setFontSize(14);
+    doc.setTextColor(37, 99, 235);
+    doc.text('Resumo do Desempenho', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    
+    const overallAvg = playerStats.length > 0 && playerStats.reduce((sum, stat) => sum + stat.average, 0) > 0
+      ? (playerStats.reduce((sum, stat) => sum + stat.average, 0) / playerStats.length).toFixed(1)
+      : '0.0';
+    
+    doc.text(`Média Geral: ${overallAvg} / 5.0`, 20, yPosition);
+    yPosition += 7;
+    doc.text(`Total de Sessões: ${sessions.length}`, 20, yPosition);
+    yPosition += 7;
+    doc.text(`Critérios Avaliados: ${playerStats.length}`, 20, yPosition);
+    yPosition += 15;
+
+    // Performance by Criteria
+    doc.setFontSize(14);
+    doc.setTextColor(37, 99, 235);
+    doc.text('Desempenho por Critério', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+
+    const sortedStats = [...playerStats].sort((a, b) => b.average - a.average);
+    
+    sortedStats.forEach((stat, index) => {
+      if (yPosition > pageHeight - 30) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      const trend = stat.trend > 0.1 ? '↗' : stat.trend < -0.1 ? '↘' : '→';
+      const trendText = stat.trend > 0.1 ? `+${stat.trend.toFixed(1)}` : stat.trend < -0.1 ? stat.trend.toFixed(1) : 'estável';
+      
+      doc.text(`${index + 1}. ${stat.valence_name}`, 20, yPosition);
+      doc.text(`${stat.average.toFixed(1)} / 5.0`, 100, yPosition);
+      doc.text(`${stat.count}x avaliações`, 140, yPosition);
+      doc.text(`${trend} ${trendText}`, 175, yPosition);
+      yPosition += 7;
+    });
+
+    yPosition += 10;
+
+    // Session History
+    if (yPosition > pageHeight - 60) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFontSize(14);
+    doc.setTextColor(37, 99, 235);
+    doc.text('Histórico de Sessões', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+
+    const recentSessions = sessions.slice(0, 10); // Last 10 sessions
+    recentSessions.forEach((session, index) => {
+      if (yPosition > pageHeight - 20) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      const dateStr = new Date(session.date).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      const timeStr = new Date(session.date).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      doc.text(`${dateStr} ${timeStr}`, 20, yPosition);
+      doc.text(`${session.evaluation_count} avaliações`, 100, yPosition);
+      yPosition += 7;
+    });
+
+    // Footer
+    const totalPages = doc.internal.pages.length - 1;
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        `Página ${i} de ${totalPages} - BaseCoach © ${new Date().getFullYear()}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Save PDF
+    const fileName = `relatorio_${selectedPlayer.name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+  };
+
+  // Generate AI insights for player
+  const handleGenerateInsights = async () => {
+    if (!selectedPlayer || playerStats.length === 0) return;
+
+    setLoadingInsights(true);
+    try {
+      const insights = await generatePlayerInsights(
+        selectedPlayer.name,
+        playerStats,
+        sessions.length
+      );
+      setAiInsights(insights);
+    } catch (error) {
+      console.error('Error generating insights:', error);
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
+  // Share player report
+  const handleShareReport = async () => {
+    if (!selectedPlayer) return;
+
+    const reportText = `📊 Relatório de Desempenho - ${selectedPlayer.name}
+
+${selectedPlayer.jersey_number ? `Número: #${selectedPlayer.jersey_number}` : ''}
+${selectedPlayer.position ? `Posição: ${selectedPlayer.position}` : ''}
+${teams.find(t => t.id === selectedTeamId)?.name ? `Time: ${teams.find(t => t.id === selectedTeamId)?.name}` : ''}
+
+📈 Resumo:
+• Média Geral: ${playerStats.length > 0 && playerStats.reduce((sum, stat) => sum + stat.average, 0) > 0
+      ? (playerStats.reduce((sum, stat) => sum + stat.average, 0) / playerStats.length).toFixed(1)
+      : '0.0'} / 5.0
+• Sessões Completadas: ${sessions.length}
+• Critérios Avaliados: ${playerStats.length}
+
+🏆 Melhor Habilidade: ${playerStats.length > 0 ? playerStats.reduce((max, stat) => stat.average > max.average ? stat : max).valence_name : 'N/A'} (${playerStats.length > 0 ? playerStats.reduce((max, stat) => stat.average > max.average ? stat : max).average.toFixed(1) : '0.0'}/5.0)
+
+📅 Última Atualização: ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+
+Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
+
+    // Try native share first (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Relatório - ${selectedPlayer.name}`,
+          text: reportText,
+        });
+        setShareSuccess(true);
+        setTimeout(() => setShareSuccess(false), 3000);
+        return;
+      } catch (err) {
+        // User cancelled or share failed, fall back to clipboard
+        console.log('Share cancelled');
+      }
+    }
+
+    // Fallback to clipboard
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setShareSuccess(true);
+      setTimeout(() => setShareSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      alert('Não foi possível copiar o relatório. Por favor, tente novamente.');
+    }
   };
 
   if (loading) {
@@ -463,7 +1019,7 @@ const Reports: React.FC = () => {
           <select
             value={selectedPlayerId}
             onChange={(e) => setSelectedPlayerId(e.target.value)}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
           >
             {players.map(player => (
               <option key={player.id} value={player.id}>
@@ -471,6 +1027,30 @@ const Reports: React.FC = () => {
               </option>
             ))}
           </select>
+
+          {/* Player View Sub-Tabs */}
+          <div className="flex gap-2 border-t border-slate-200 pt-4">
+            <button
+              onClick={() => setPlayerViewMode('overview')}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                playerViewMode === 'overview'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              Visão Geral
+            </button>
+            <button
+              onClick={() => setPlayerViewMode('evolution')}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                playerViewMode === 'evolution'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              Evolução
+            </button>
+          </div>
         </div>
       )}
 
@@ -582,8 +1162,8 @@ const Reports: React.FC = () => {
         </>
       )}
 
-      {/* Individual Player Mode */}
-      {viewMode === 'player' && selectedPlayer && (
+      {/* Individual Player Mode - Overview */}
+      {viewMode === 'player' && playerViewMode === 'overview' && selectedPlayer && (
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
@@ -600,15 +1180,47 @@ const Reports: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold">{sessions.length}</div>
-              <div className="text-blue-100">Sessões</div>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExportPDF}
+                  className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+                  title="Exportar como PDF"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="text-sm font-medium">PDF</span>
+                </button>
+                <button
+                  onClick={handleShareReport}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                    shareSuccess 
+                      ? 'bg-green-500/30' 
+                      : 'bg-white/20 hover:bg-white/30'
+                  }`}
+                  title="Compartilhar relatório"
+                >
+                  {shareSuccess ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Share2 className="w-4 h-4" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {shareSuccess ? 'Copiado!' : 'Compartilhar'}
+                  </span>
+                </button>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold">{sessions.length}</div>
+                <div className="text-xs text-blue-100">Sessões</div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {/* Stats Cards */}
+      {viewMode === 'player' && playerViewMode === 'overview' && (
+        <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
           <div className="flex items-center gap-3 mb-2">
@@ -770,6 +1382,273 @@ const Reports: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* AI Insights Section */}
+      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl shadow-sm border-2 border-indigo-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <Brain className="w-5 h-5 text-indigo-600" />
+            Análise com IA
+          </h3>
+          <button
+            onClick={handleGenerateInsights}
+            disabled={loadingInsights || playerStats.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+          >
+            {loadingInsights ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span className="text-sm font-medium">Gerando...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  {aiInsights ? 'Atualizar Análise' : 'Gerar Análise com IA'}
+                </span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {aiInsights ? (
+          <div className="space-y-6">
+            {/* Strengths */}
+            <div>
+              <h4 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                <Award className="w-4 h-4" />
+                Pontos Fortes
+              </h4>
+              <ul className="space-y-2">
+                {aiInsights.strengths.map((strength, index) => (
+                  <li key={index} className="flex items-start gap-2 text-slate-700">
+                    <span className="text-green-600 font-bold mt-0.5">✓</span>
+                    <span>{strength}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Weaknesses */}
+            <div>
+              <h4 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                <Target className="w-4 h-4" />
+                Pontos a Melhorar
+              </h4>
+              <ul className="space-y-2">
+                {aiInsights.weaknesses.map((weakness, index) => (
+                  <li key={index} className="flex items-start gap-2 text-slate-700">
+                    <span className="text-orange-600 font-bold mt-0.5">!</span>
+                    <span>{weakness}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Recommendations */}
+            <div>
+              <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                <Lightbulb className="w-4 h-4" />
+                Recomendações de Treino
+              </h4>
+              <ul className="space-y-2">
+                {aiInsights.recommendations.map((recommendation, index) => (
+                  <li key={index} className="flex items-start gap-2 text-slate-700">
+                    <span className="text-blue-600 font-bold mt-0.5">→</span>
+                    <span>{recommendation}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Overall Assessment */}
+            <div className="bg-white/70 rounded-lg p-4 border border-indigo-200">
+              <h4 className="font-semibold text-indigo-900 mb-2">Avaliação Geral</h4>
+              <p className="text-slate-700 leading-relaxed">{aiInsights.overallAssessment}</p>
+            </div>
+
+            <div className="text-xs text-slate-500 text-center pt-2 border-t border-indigo-200">
+              Análise gerada por IA • Powered by Google Gemini • Use como orientação para o desenvolvimento do atleta
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Brain className="w-12 h-12 text-indigo-400 mx-auto mb-3" />
+            <p className="text-slate-600 mb-4">
+              Clique no botão acima para gerar uma análise detalhada com IA sobre o desempenho do atleta.
+            </p>
+            <p className="text-sm text-slate-500">
+              A análise incluirá pontos fortes, áreas de melhoria e recomendações personalizadas de treino.
+            </p>
+          </div>
+        )}
+      </div>
+        </>
+      )}
+
+      {/* Individual Player Mode - Evolution */}
+      {viewMode === 'player' && playerViewMode === 'evolution' && selectedPlayer && evolutionData.length > 0 && (
+        <>
+          {/* Evolution Header */}
+          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Evolução de {selectedPlayer.name}</h2>
+                <p className="text-purple-100">Acompanhe o progresso ao longo do tempo</p>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold">{evolutionData.length}</div>
+                <div className="text-purple-100">Sessões</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Valence Selector and Date Range Filter */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Selecionar Critério para Visualizar Evolução
+              </label>
+              <select
+                value={selectedValenceForEvolution}
+                onChange={(e) => setSelectedValenceForEvolution(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                {playerStats.map(stat => (
+                  <option key={stat.valence_id} value={stat.valence_id}>
+                    {stat.valence_name} (Média: {stat.average.toFixed(1)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Período
+              </label>
+              <select
+                value={dateRangeFilter}
+                onChange={(e) => setDateRangeFilter(e.target.value as any)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="all">Todas as Sessões</option>
+                <option value="last7">Últimos 7 dias</option>
+                <option value="last30">Últimos 30 dias</option>
+                <option value="last90">Últimos 90 dias</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Evolution Line Chart */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-600" />
+              Evolução: {playerStats.find(s => s.valence_id === selectedValenceForEvolution)?.valence_name}
+            </h3>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={filteredEvolutionData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  label={{ value: 'Data da Sessão', position: 'insideBottom', offset: -5 }}
+                />
+                <YAxis 
+                  domain={[0, 5]}
+                  label={{ value: 'Pontuação', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0' }}
+                  formatter={(value: number) => [`${value.toFixed(1)} / 5.0`, 'Pontuação']}
+                  labelFormatter={(label) => `Sessão: ${label}`}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey={selectedValenceForEvolution} 
+                  stroke="#8b5cf6" 
+                  strokeWidth={3}
+                  dot={{ fill: '#8b5cf6', r: 6 }}
+                  activeDot={{ r: 8 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Evolution Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-slate-700">Melhor Pontuação</h3>
+              </div>
+              <div className="text-3xl font-bold text-slate-900">
+                {filteredEvolutionData.length > 0
+                  ? Math.max(...filteredEvolutionData
+                      .filter(d => d[selectedValenceForEvolution] !== undefined)
+                      .map(d => Number(d[selectedValenceForEvolution]) || 0)
+                    ).toFixed(1)
+                  : '0.0'}
+              </div>
+              <p className="text-sm text-slate-500 mt-1">Pontuação máxima alcançada</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <BarChart className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-slate-700">Média Total</h3>
+              </div>
+              <div className="text-3xl font-bold text-slate-900">
+                {filteredEvolutionData.length > 0
+                  ? (filteredEvolutionData
+                      .filter(d => d[selectedValenceForEvolution] !== undefined)
+                      .reduce((sum, d) => sum + (Number(d[selectedValenceForEvolution]) || 0), 0) / 
+                      filteredEvolutionData.filter(d => d[selectedValenceForEvolution] !== undefined).length
+                    ).toFixed(1)
+                  : '0.0'}
+              </div>
+              <p className="text-sm text-slate-500 mt-1">Média em todas as sessões</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Activity className="w-5 h-5 text-purple-600" />
+                </div>
+                <h3 className="font-semibold text-slate-700">Progresso</h3>
+              </div>
+              <div className="text-3xl font-bold text-slate-900">
+                {(() => {
+                  const scores = filteredEvolutionData
+                    .filter(d => d[selectedValenceForEvolution] !== undefined)
+                    .map(d => Number(d[selectedValenceForEvolution]) || 0);
+                  if (scores.length < 2) return '0.0';
+                  const first = scores[0];
+                  const last = scores[scores.length - 1];
+                  const diff = last - first;
+                  return diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
+                })()}
+              </div>
+              <p className="text-sm text-slate-500 mt-1">Primeira vs Última sessão</p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Evolution Empty State */}
+      {viewMode === 'player' && playerViewMode === 'evolution' && selectedPlayer && evolutionData.length === 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-12 text-center">
+          <TrendingUp className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            Dados insuficientes para evolução
+          </h3>
+          <p className="text-slate-600">
+            Complete mais sessões avaliando {selectedPlayer.name} para visualizar gráficos de evolução.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
