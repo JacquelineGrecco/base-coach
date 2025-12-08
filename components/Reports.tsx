@@ -30,6 +30,12 @@ interface SessionHistory {
   evaluation_count: number;
 }
 
+interface EvolutionData {
+  date: string;
+  sessionId: string;
+  [key: string]: string | number; // Dynamic keys for each valence
+}
+
 const Reports: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
@@ -40,7 +46,10 @@ const Reports: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [viewMode, setViewMode] = useState<'team' | 'player'>('team'); // Team overview or individual player
+  const [playerViewMode, setPlayerViewMode] = useState<'overview' | 'evolution'>('overview'); // Player sub-view
   const [teamStats, setTeamStats] = useState<any[]>([]);
+  const [evolutionData, setEvolutionData] = useState<EvolutionData[]>([]);
+  const [selectedValenceForEvolution, setSelectedValenceForEvolution] = useState<string>('');
 
   // Load teams on mount
   useEffect(() => {
@@ -59,6 +68,7 @@ const Reports: React.FC = () => {
   useEffect(() => {
     if (selectedPlayerId) {
       loadPlayerData(selectedPlayerId);
+      loadEvolutionData(selectedPlayerId);
     }
   }, [selectedPlayerId]);
 
@@ -267,6 +277,84 @@ const Reports: React.FC = () => {
     }
   }
 
+  async function loadEvolutionData(playerId: string) {
+    try {
+      // Get all evaluations for this player with session info
+      const { data: evaluations, error: evalError } = await supabase
+        .from('evaluations')
+        .select(`
+          *,
+          sessions(id, date)
+        `)
+        .eq('player_id', playerId)
+        .order('created_at', { ascending: true });
+
+      if (evalError) throw evalError;
+
+      if (!evaluations || evaluations.length === 0) {
+        setEvolutionData([]);
+        return;
+      }
+
+      // Group evaluations by session
+      const sessionMap = new Map<string, any>();
+      
+      (evaluations as any[]).forEach((evaluation: any) => {
+        if (!evaluation.sessions) return;
+        
+        const sessionId = evaluation.sessions.id;
+        const sessionDate = evaluation.sessions.date;
+        
+        if (!sessionMap.has(sessionId)) {
+          sessionMap.set(sessionId, {
+            sessionId,
+            date: sessionDate,
+            scores: {}
+          });
+        }
+        
+        const session = sessionMap.get(sessionId);
+        const valenceId = evaluation.valence_id;
+        
+        if (!session.scores[valenceId]) {
+          session.scores[valenceId] = [];
+        }
+        
+        if (evaluation.score > 0) { // Exclude 0 scores
+          session.scores[valenceId].push(evaluation.score);
+        }
+      });
+
+      // Calculate averages and format for chart
+      const evolutionArray: EvolutionData[] = Array.from(sessionMap.values()).map(session => {
+        const dataPoint: EvolutionData = {
+          date: new Date(session.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          sessionId: session.sessionId
+        };
+        
+        // Add average score for each valence
+        Object.entries(session.scores).forEach(([valenceId, scores]: [string, any]) => {
+          const average = scores.length > 0 
+            ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length 
+            : 0;
+          dataPoint[valenceId] = Number(average.toFixed(1));
+        });
+        
+        return dataPoint;
+      });
+
+      setEvolutionData(evolutionArray);
+      
+      // Auto-select first valence for evolution chart
+      if (playerStats.length > 0 && !selectedValenceForEvolution) {
+        setSelectedValenceForEvolution(playerStats[0].valence_id);
+      }
+
+    } catch (err: any) {
+      console.error('Error loading evolution data:', err);
+    }
+  }
+
   // Prepare radar chart data
   const radarChartData = useMemo(() => {
     return playerStats.map(stat => ({
@@ -463,7 +551,7 @@ const Reports: React.FC = () => {
           <select
             value={selectedPlayerId}
             onChange={(e) => setSelectedPlayerId(e.target.value)}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
           >
             {players.map(player => (
               <option key={player.id} value={player.id}>
@@ -471,6 +559,30 @@ const Reports: React.FC = () => {
               </option>
             ))}
           </select>
+
+          {/* Player View Sub-Tabs */}
+          <div className="flex gap-2 border-t border-slate-200 pt-4">
+            <button
+              onClick={() => setPlayerViewMode('overview')}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                playerViewMode === 'overview'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              Visão Geral
+            </button>
+            <button
+              onClick={() => setPlayerViewMode('evolution')}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                playerViewMode === 'evolution'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              Evolução
+            </button>
+          </div>
         </div>
       )}
 
@@ -582,8 +694,8 @@ const Reports: React.FC = () => {
         </>
       )}
 
-      {/* Individual Player Mode */}
-      {viewMode === 'player' && selectedPlayer && (
+      {/* Individual Player Mode - Overview */}
+      {viewMode === 'player' && playerViewMode === 'overview' && selectedPlayer && (
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
@@ -609,6 +721,8 @@ const Reports: React.FC = () => {
       )}
 
       {/* Stats Cards */}
+      {viewMode === 'player' && playerViewMode === 'overview' && (
+        <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
           <div className="flex items-center gap-3 mb-2">
@@ -770,6 +884,150 @@ const Reports: React.FC = () => {
           ))}
         </div>
       </div>
+        </>
+      )}
+
+      {/* Individual Player Mode - Evolution */}
+      {viewMode === 'player' && playerViewMode === 'evolution' && selectedPlayer && evolutionData.length > 0 && (
+        <>
+          {/* Evolution Header */}
+          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Evolução de {selectedPlayer.name}</h2>
+                <p className="text-purple-100">Acompanhe o progresso ao longo do tempo</p>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold">{evolutionData.length}</div>
+                <div className="text-purple-100">Sessões</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Valence Selector */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Selecionar Critério para Visualizar Evolução
+            </label>
+            <select
+              value={selectedValenceForEvolution}
+              onChange={(e) => setSelectedValenceForEvolution(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            >
+              {playerStats.map(stat => (
+                <option key={stat.valence_id} value={stat.valence_id}>
+                  {stat.valence_name} (Média: {stat.average.toFixed(1)})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Evolution Line Chart */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-600" />
+              Evolução: {playerStats.find(s => s.valence_id === selectedValenceForEvolution)?.valence_name}
+            </h3>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={evolutionData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  label={{ value: 'Data da Sessão', position: 'insideBottom', offset: -5 }}
+                />
+                <YAxis 
+                  domain={[0, 5]}
+                  label={{ value: 'Pontuação', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0' }}
+                  formatter={(value: number) => [`${value.toFixed(1)} / 5.0`, 'Pontuação']}
+                  labelFormatter={(label) => `Sessão: ${label}`}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey={selectedValenceForEvolution} 
+                  stroke="#8b5cf6" 
+                  strokeWidth={3}
+                  dot={{ fill: '#8b5cf6', r: 6 }}
+                  activeDot={{ r: 8 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Evolution Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-slate-700">Melhor Pontuação</h3>
+              </div>
+              <div className="text-3xl font-bold text-slate-900">
+                {Math.max(...evolutionData
+                  .filter(d => d[selectedValenceForEvolution] !== undefined)
+                  .map(d => Number(d[selectedValenceForEvolution]) || 0)
+                ).toFixed(1)}
+              </div>
+              <p className="text-sm text-slate-500 mt-1">Pontuação máxima alcançada</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <BarChart className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-slate-700">Média Total</h3>
+              </div>
+              <div className="text-3xl font-bold text-slate-900">
+                {(evolutionData
+                  .filter(d => d[selectedValenceForEvolution] !== undefined)
+                  .reduce((sum, d) => sum + (Number(d[selectedValenceForEvolution]) || 0), 0) / 
+                  evolutionData.filter(d => d[selectedValenceForEvolution] !== undefined).length
+                ).toFixed(1)}
+              </div>
+              <p className="text-sm text-slate-500 mt-1">Média em todas as sessões</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Activity className="w-5 h-5 text-purple-600" />
+                </div>
+                <h3 className="font-semibold text-slate-700">Progresso</h3>
+              </div>
+              <div className="text-3xl font-bold text-slate-900">
+                {(() => {
+                  const scores = evolutionData
+                    .filter(d => d[selectedValenceForEvolution] !== undefined)
+                    .map(d => Number(d[selectedValenceForEvolution]) || 0);
+                  if (scores.length < 2) return '0.0';
+                  const first = scores[0];
+                  const last = scores[scores.length - 1];
+                  const diff = last - first;
+                  return diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
+                })()}
+              </div>
+              <p className="text-sm text-slate-500 mt-1">Primeira vs Última sessão</p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Evolution Empty State */}
+      {viewMode === 'player' && playerViewMode === 'evolution' && selectedPlayer && evolutionData.length === 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-12 text-center">
+          <TrendingUp className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            Dados insuficientes para evolução
+          </h3>
+          <p className="text-slate-600">
+            Complete mais sessões avaliando {selectedPlayer.name} para visualizar gráficos de evolução.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
