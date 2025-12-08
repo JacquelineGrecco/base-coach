@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users } from 'lucide-react';
+import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users, Download, FileText } from 'lucide-react';
 import { VALENCES } from '../constants';
 import { supabase } from '../lib/supabase';
 import { sessionService, SessionEvaluation } from '../services/sessionService';
 import { teamService, Team } from '../services/teamService';
+import jsPDF from 'jspdf';
 
 interface Player {
   id: string;
@@ -406,6 +407,151 @@ const Reports: React.FC = () => {
       .substring(0, 2);
   };
 
+  // Export player report to PDF
+  const handleExportPDF = () => {
+    if (!selectedPlayer) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    let yPosition = 20;
+
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(37, 99, 235); // Blue
+    doc.text('BaseCoach - Relatório do Atleta', pageWidth / 2, yPosition, { align: 'center' });
+    
+    yPosition += 15;
+    doc.setFontSize(16);
+    doc.setTextColor(0, 0, 0);
+    doc.text(selectedPlayer.name, pageWidth / 2, yPosition, { align: 'center' });
+    
+    yPosition += 8;
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    const playerInfo = [
+      selectedPlayer.jersey_number ? `#${selectedPlayer.jersey_number}` : '',
+      selectedPlayer.position || ''
+    ].filter(Boolean).join(' - ');
+    if (playerInfo) {
+      doc.text(playerInfo, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 8;
+    }
+
+    const currentTeam = teams.find(t => t.id === selectedTeamId);
+    if (currentTeam) {
+      doc.text(currentTeam.name, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
+    }
+
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth / 2, yPosition, { align: 'center' });
+    
+    yPosition += 15;
+
+    // Summary Stats
+    doc.setFontSize(14);
+    doc.setTextColor(37, 99, 235);
+    doc.text('Resumo do Desempenho', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    
+    const overallAvg = playerStats.length > 0 && playerStats.reduce((sum, stat) => sum + stat.average, 0) > 0
+      ? (playerStats.reduce((sum, stat) => sum + stat.average, 0) / playerStats.length).toFixed(1)
+      : '0.0';
+    
+    doc.text(`Média Geral: ${overallAvg} / 5.0`, 20, yPosition);
+    yPosition += 7;
+    doc.text(`Total de Sessões: ${sessions.length}`, 20, yPosition);
+    yPosition += 7;
+    doc.text(`Critérios Avaliados: ${playerStats.length}`, 20, yPosition);
+    yPosition += 15;
+
+    // Performance by Criteria
+    doc.setFontSize(14);
+    doc.setTextColor(37, 99, 235);
+    doc.text('Desempenho por Critério', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+
+    const sortedStats = [...playerStats].sort((a, b) => b.average - a.average);
+    
+    sortedStats.forEach((stat, index) => {
+      if (yPosition > pageHeight - 30) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      const trend = stat.trend > 0.1 ? '↗' : stat.trend < -0.1 ? '↘' : '→';
+      const trendText = stat.trend > 0.1 ? `+${stat.trend.toFixed(1)}` : stat.trend < -0.1 ? stat.trend.toFixed(1) : 'estável';
+      
+      doc.text(`${index + 1}. ${stat.valence_name}`, 20, yPosition);
+      doc.text(`${stat.average.toFixed(1)} / 5.0`, 100, yPosition);
+      doc.text(`${stat.count}x avaliações`, 140, yPosition);
+      doc.text(`${trend} ${trendText}`, 175, yPosition);
+      yPosition += 7;
+    });
+
+    yPosition += 10;
+
+    // Session History
+    if (yPosition > pageHeight - 60) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFontSize(14);
+    doc.setTextColor(37, 99, 235);
+    doc.text('Histórico de Sessões', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+
+    const recentSessions = sessions.slice(0, 10); // Last 10 sessions
+    recentSessions.forEach((session, index) => {
+      if (yPosition > pageHeight - 20) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      const dateStr = new Date(session.date).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      const timeStr = new Date(session.date).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      doc.text(`${dateStr} ${timeStr}`, 20, yPosition);
+      doc.text(`${session.evaluation_count} avaliações`, 100, yPosition);
+      yPosition += 7;
+    });
+
+    // Footer
+    const totalPages = doc.internal.pages.length - 1;
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        `Página ${i} de ${totalPages} - BaseCoach © ${new Date().getFullYear()}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Save PDF
+    const fileName = `relatorio_${selectedPlayer.name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+  };
+
   if (loading) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -741,9 +887,18 @@ const Reports: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold">{sessions.length}</div>
-              <div className="text-blue-100">Sessões</div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleExportPDF}
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span className="text-sm font-medium">Exportar PDF</span>
+              </button>
+              <div className="text-center">
+                <div className="text-2xl font-bold">{sessions.length}</div>
+                <div className="text-xs text-blue-100">Sessões</div>
+              </div>
             </div>
           </div>
         </div>
