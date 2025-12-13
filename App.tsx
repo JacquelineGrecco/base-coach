@@ -18,6 +18,7 @@ function AppContent() {
   const { user, loading } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>("DASHBOARD");
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+  const [preselectedTeamId, setPreselectedTeamId] = useState<string | null>(null);
 
   // Check if we're in password recovery mode
   React.useEffect(() => {
@@ -105,12 +106,17 @@ function AppContent() {
         return <Dashboard 
           onStartSession={handleStartSessionSetup} 
           onNavigateToTeams={() => setCurrentView("TEAMS")}
+          onNavigateToReports={(teamId?: string) => {
+            if (teamId) setPreselectedTeamId(teamId);
+            setCurrentView("REPORTS");
+          }}
         />;
       case "SESSION_SETUP":
         return (
           <SessionSetup 
             onStartSession={handleStartSession}
             onCancel={() => setCurrentView("DASHBOARD")}
+            onNavigateToTeams={() => setCurrentView("TEAMS")}
           />
         );
       case "ACTIVE_SESSION":
@@ -131,7 +137,11 @@ function AppContent() {
       case "DRILLS":
         return <DrillLibrary />;
       case "REPORTS":
-        return <Reports evaluations={sessionEvaluations} />;
+        return <Reports 
+          evaluations={sessionEvaluations}
+          preselectedTeamId={preselectedTeamId}
+          onTeamChange={() => setPreselectedTeamId(null)}
+        />;
       case "PROFILE":
         return <Profile />;
       case "TEAMS":

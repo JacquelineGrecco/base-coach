@@ -84,7 +84,14 @@ export function ResetPassword({ onSuccess }: ResetPasswordProps) {
     try {
       const { error } = await authService.updatePassword(password);
       if (error) {
-        setError(error.message);
+        // Translate Supabase errors to Portuguese
+        if (error.message.includes('New password should be different')) {
+          setError('A nova senha deve ser diferente da senha antiga');
+        } else if (error.message.includes('Password should be at least')) {
+          setError('A senha deve ter pelo menos 8 caracteres');
+        } else {
+          setError('Erro ao redefinir senha. Tente novamente.');
+        }
       } else {
         setSuccess(true);
         // Redirect to login after 2 seconds

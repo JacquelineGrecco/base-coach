@@ -13,6 +13,7 @@ interface Player {
   position?: PlayerPosition | '';
   jersey_number?: number;
   birth_date?: string;
+  dominant_leg?: 'Esquerda' | 'Direita' | 'Ambos' | '';
   notes?: string;
   is_active: boolean;
   created_at: string;
@@ -48,11 +49,27 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
     position: '',
     jersey_number: '',
     birth_date: '',
+    dominant_leg: '',
     notes: '',
     category_id: categoryId || '',
   });
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
+
+  // Helper function to calculate age from birth date
+  function calculateAge(birthDate: string): number {
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    // Adjust age if birthday hasn't occurred yet this year
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return age;
+  }
 
   useEffect(() => {
     loadPlayers();
@@ -205,6 +222,7 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
           position: formData.position || null,
           jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
           birth_date: formData.birth_date || null,
+          dominant_leg: formData.dominant_leg || null,
           notes: formData.notes || null,
         } as any)
         .select()
@@ -219,7 +237,9 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
         position: '',
         jersey_number: '',
         birth_date: '',
+        dominant_leg: '',
         notes: '',
+        category_id: categoryId || '',
       });
       loadPlayers();
       
@@ -238,6 +258,7 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
       position: player.position || '',
       jersey_number: player.jersey_number?.toString() || '',
       birth_date: player.birth_date || '',
+      dominant_leg: player.dominant_leg || '',
       notes: player.notes || '',
       category_id: player.category_id || '',
     });
@@ -274,6 +295,7 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
         position: formData.position || null,
         jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
         birth_date: formData.birth_date || null,
+        dominant_leg: formData.dominant_leg || null,
         notes: formData.notes || null,
         category_id: formData.category_id || null,
         updated_at: new Date().toISOString(),
@@ -300,6 +322,7 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
         position: '',
         jersey_number: '',
         birth_date: '',
+        dominant_leg: '',
         notes: '',
         category_id: categoryId || '',
       });
@@ -439,7 +462,7 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
               <div className="col-span-1">#</div>
               <div className="col-span-4">Nome</div>
               <div className="col-span-3">Posição</div>
-              <div className="col-span-2">Nascimento</div>
+              <div className="col-span-2">Idade</div>
               <div className="col-span-2 text-right">Ações</div>
             </div>
           </div>
@@ -478,11 +501,11 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
                     </span>
                   </div>
 
-                  {/* Birth Date */}
+                  {/* Age */}
                   <div className="col-span-2">
                     {player.birth_date ? (
                       <span className="text-sm text-gray-600">
-                        {new Date(player.birth_date).toLocaleDateString('pt-BR')}
+                        {calculateAge(player.birth_date)} anos
                       </span>
                     ) : (
                       <span className="text-gray-400">—</span>
@@ -586,6 +609,22 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
                     <option value="Fixo">Fixo</option>
                     <option value="Ala">Ala</option>
                     <option value="Pivô">Pivô</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Perna Dominante
+                  </label>
+                  <select
+                    value={formData.dominant_leg}
+                    onChange={(e) => setFormData({ ...formData, dominant_leg: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="Direita">Direita</option>
+                    <option value="Esquerda">Esquerda</option>
+                    <option value="Ambos">Ambos</option>
                   </select>
                 </div>
               </div>
@@ -738,6 +777,22 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
                     <option value="Fixo">Fixo</option>
                     <option value="Ala">Ala</option>
                     <option value="Pivô">Pivô</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Perna Dominante
+                  </label>
+                  <select
+                    value={formData.dominant_leg}
+                    onChange={(e) => setFormData({ ...formData, dominant_leg: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="Direita">Direita</option>
+                    <option value="Esquerda">Esquerda</option>
+                    <option value="Ambos">Ambos</option>
                   </select>
                 </div>
               </div>
