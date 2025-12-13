@@ -20,11 +20,10 @@ export function Login({ onSwitchToSignup, onForgotPassword }: LoginProps) {
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockCountdown, setBlockCountdown] = useState(0);
   
-  // WhatsApp support number (update this with your actual number)
-  const SUPPORT_WHATSAPP = process.env.WHATSAPP_SUPPORT_NUMBER; // Format: Country code + number (no spaces/dashes)
-  if (!SUPPORT_WHATSAPP) {
-    throw new Error('WHATSAPP_SUPPORT_NUMBER is not set');
-  }
+  // WhatsApp support number from environment variable
+  // Format: Country code + DDD + number (no spaces/dashes)
+  // Example: 5511999999999 (55 = Brazil, 11 = São Paulo, 999999999 = number)
+  const SUPPORT_WHATSAPP = import.meta.env.VITE_SUPPORT_WHATSAPP || '5511999999999';
 
   // Check for account lockout on mount
   React.useEffect(() => {
