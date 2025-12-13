@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Activity, Calendar, ArrowRight, AlertCircle, Plus, Folder, Clock } from 'lucide-react';
+import { Users, Activity, Calendar, ArrowRight, AlertCircle, Plus, Folder, Clock, Target } from 'lucide-react';
 import { teamService } from '../services/teamService';
 import { sessionService, Session } from '../services/sessionService';
 import { supabase } from '../lib/supabase';
+import { VALENCES } from '../constants';
 
 interface DashboardProps {
   onStartSession: () => void;
   onNavigateToTeams?: () => void;
+  onNavigateToReports?: (teamId?: string) => void;
 }
 
 interface DbPlayer {
@@ -26,13 +28,15 @@ interface DbTeam {
   category_count?: number;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams, onNavigateToReports }) => {
   const [teams, setTeams] = useState<DbTeam[]>([]);
   const [players, setPlayers] = useState<DbPlayer[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [sessionEvaluations, setSessionEvaluations] = useState<any[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -98,6 +102,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
       setSessions((sessionsData || []).slice(0, 5));
     } catch (error: any) {
       console.error('Error loading sessions:', error);
+    }
+  }
+
+  async function handleViewSessionDetails(session: Session) {
+    setSelectedSession(session);
+    
+    // Load evaluations for this session
+    try {
+      const { data: evaluations, error } = await supabase
+        .from('evaluations')
+        .select(`
+          *,
+          players(id, name, jersey_number, position)
+        `)
+        .eq('session_id', session.id);
+
+      if (error) throw error;
+      setSessionEvaluations(evaluations || []);
+    } catch (error: any) {
+      console.error('Error loading session evaluations:', error);
+      setError('Erro ao carregar avaliações da sessão');
     }
   }
 
@@ -356,8 +381,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
                             )}
                           </div>
                         </div>
-                        <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                          Ver detalhes →
+                        <button 
+                          onClick={() => handleViewSessionDetails(session)}
+                          className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 transition-colors"
+                        >
+                          Ver detalhes
+                          <ArrowRight className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -365,6 +394,155 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
               </div>
             )}
         </div>
+
+        {/* Session Details Modal */}
+        {selectedSession && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-2xl font-bold mb-2">Detalhes da Sessão</h3>
+                    <p className="text-blue-100">
+                      {new Date(selectedSession.date).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedSession(null);
+                      setSessionEvaluations([]);
+                    }}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <AlertCircle className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6">
+                {/* Session Info */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-slate-50 p-4 rounded-lg">
+                    <div className="text-sm text-slate-600 mb-1">Time</div>
+                    <div className="font-semibold text-slate-900">{selectedSession.team_name}</div>
+                  </div>
+                  {selectedSession.category_name && (
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <div className="text-sm text-purple-600 mb-1">Categoria</div>
+                      <div className="font-semibold text-purple-900">{selectedSession.category_name}</div>
+                    </div>
+                  )}
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-sm text-blue-600 mb-1">Avaliações</div>
+                    <div className="font-semibold text-blue-900">{sessionEvaluations.length}</div>
+                  </div>
+                  {selectedSession.duration_minutes && (
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="text-sm text-green-600 mb-1">Duração</div>
+                      <div className="font-semibold text-green-900">{selectedSession.duration_minutes} min</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Criteria/Valences Used */}
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-blue-600" />
+                    Critérios Avaliados
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedSession.selected_valences.map((valenceId) => {
+                      const valence = VALENCES.find(v => v.id === valenceId);
+                      if (!valence) return null;
+                      
+                      const categoryColors = {
+                        'Technical': 'bg-blue-100 text-blue-700 border-blue-200',
+                        'Physical': 'bg-red-100 text-red-700 border-red-200',
+                        'Tactical': 'bg-purple-100 text-purple-700 border-purple-200',
+                        'Psychological': 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                      };
+                      
+                      return (
+                        <div
+                          key={valenceId}
+                          className={`px-3 py-2 rounded-lg border font-medium text-sm ${
+                            categoryColors[valence.category as keyof typeof categoryColors] || 'bg-gray-100 text-gray-700 border-gray-200'
+                          }`}
+                        >
+                          {valence.name}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Evaluations List */}
+                <div>
+                  <h4 className="text-lg font-semibold text-slate-900 mb-4">Avaliações dos Atletas</h4>
+                  {sessionEvaluations.length === 0 ? (
+                    <p className="text-slate-500 text-center py-8">Nenhuma avaliação encontrada</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {sessionEvaluations.map((evaluation: any) => (
+                        <div key={evaluation.id} className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center font-semibold text-emerald-700">
+                                {evaluation.players?.jersey_number || '?'}
+                              </div>
+                              <div>
+                                <div className="font-medium text-slate-900">{evaluation.players?.name || 'Atleta'}</div>
+                                <div className="text-sm text-slate-500">{evaluation.players?.position || '—'}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-blue-600">{evaluation.score}</div>
+                                <div className="text-xs text-slate-500">Pontuação</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="border-t border-slate-200 p-4 bg-slate-50 rounded-b-xl flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setSelectedSession(null);
+                    setSessionEvaluations([]);
+                  }}
+                  className="px-6 py-2.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-white transition-colors font-medium"
+                >
+                  Fechar
+                </button>
+                <button
+                  onClick={() => {
+                    if (onNavigateToReports) {
+                      onNavigateToReports(selectedSession.team_id);
+                    }
+                  }}
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+                >
+                  Ver Relatório Completo
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 };

@@ -8,7 +8,7 @@ interface AuthContextType {
   loading: boolean;
   profileError: string | null;
   clearProfileError: () => void;
-  signUp: (email: string, password: string, name: string, userType?: 'coach' | 'player') => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, name: string, phone?: string, userType?: 'coach' | 'player') => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -74,7 +74,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Profile exists, set the user
+      // Check if account is deactivated
+      if (profile.is_active === false && profile.deactivated_at) {
+        const deactivatedDate = new Date(profile.deactivated_at);
+        const now = new Date();
+        const daysSinceDeactivation = Math.floor((now.getTime() - deactivatedDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceDeactivation >= 365) {
+          // Account needs support to reactivate
+          setProfileError(
+            `Esta conta foi desativada há ${daysSinceDeactivation} dias. Para reativar, entre em contato com o suporte.`
+          );
+        } else {
+          // Account can still be reactivated by support
+          setProfileError(
+            `Esta conta foi desativada há ${daysSinceDeactivation} dias. Entre em contato com o suporte para reativar. (${365 - daysSinceDeactivation} dias restantes)`
+          );
+        }
+        
+        // Sign out the user
+        await authService.signOut();
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // Profile exists and is active, set the user
       setUser(authUser);
       setLoading(false);
     } catch (error) {
@@ -94,8 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfileError(null);
   }
 
-  async function signUp(email: string, password: string, name: string, userType: 'coach' | 'player' = 'coach') {
-    const { error } = await authService.signUp(email, password, name, userType);
+  async function signUp(email: string, password: string, name: string, phone?: string, userType: 'coach' | 'player' = 'coach') {
+    const { error } = await authService.signUp(email, password, name, phone, userType);
     return { error };
   }
 

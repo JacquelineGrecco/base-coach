@@ -38,7 +38,12 @@ interface EvolutionData {
   [key: string]: string | number; // Dynamic keys for each valence
 }
 
-const Reports: React.FC = () => {
+interface ReportsProps {
+  preselectedTeamId?: string | null;
+  onTeamChange?: () => void;
+}
+
+const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, onTeamChange }) => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [players, setPlayers] = useState<Player[]>([]);
@@ -62,11 +67,25 @@ const Reports: React.FC = () => {
     loadTeams();
   }, []);
 
+  // Set preselected team if provided
+  useEffect(() => {
+    if (preselectedTeamId && teams.length > 0) {
+      const teamExists = teams.find(t => t.id === preselectedTeamId);
+      if (teamExists) {
+        setSelectedTeamId(preselectedTeamId);
+      }
+    }
+  }, [preselectedTeamId, teams]);
+
   // Load players and team stats when team changes
   useEffect(() => {
     if (selectedTeamId) {
       loadPlayers(selectedTeamId);
       loadTeamStats(selectedTeamId);
+      // Notify parent that team was manually changed
+      if (selectedTeamId !== preselectedTeamId && onTeamChange) {
+        onTeamChange();
+      }
     }
   }, [selectedTeamId]);
 

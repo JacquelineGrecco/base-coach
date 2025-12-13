@@ -12,6 +12,7 @@ interface SessionSetupProps {
     selectedValenceIds: string[];
   }) => void;
   onCancel: () => void;
+  onNavigateToTeams?: () => void;
 }
 
 interface Category {
@@ -21,12 +22,14 @@ interface Category {
   player_count?: number;
 }
 
-const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel }) => {
+const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, onNavigateToTeams }) => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [playerCount, setPlayerCount] = useState(0);
+  const [noCategoryPlayerCount, setNoCategoryPlayerCount] = useState(0);
+  const [totalTeamPlayerCount, setTotalTeamPlayerCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedValences, setSelectedValences] = useState<string[]>([]);
@@ -66,7 +69,45 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel })
 
   async function loadCategories(teamId: string) {
     const { categories: categoriesData } = await categoryService.getCategoriesByTeam(teamId);
-    setCategories(categoriesData || []);
+    
+    // Load player count for total team and no-category players
+    const { count: totalCount } = await supabase
+      .from('players')
+      .select('*', { count: 'exact', head: true })
+      .eq('team_id', teamId)
+      .eq('is_active', true);
+    
+    const { count: noCatCount } = await supabase
+      .from('players')
+      .select('*', { count: 'exact', head: true })
+      .eq('team_id', teamId)
+      .is('category_id', null)
+      .eq('is_active', true);
+    
+    setTotalTeamPlayerCount(totalCount || 0);
+    setNoCategoryPlayerCount(noCatCount || 0);
+    
+    // Load player count for each category
+    if (categoriesData && categoriesData.length > 0) {
+      const categoriesWithCount = await Promise.all(
+        categoriesData.map(async (category) => {
+          const { count } = await supabase
+            .from('players')
+            .select('*', { count: 'exact', head: true })
+            .eq('team_id', teamId)
+            .eq('category_id', category.id)
+            .eq('is_active', true);
+          
+          return { ...category, player_count: count || 0 };
+        })
+      );
+      
+      // Only show categories that have players
+      const nonEmptyCategories = categoriesWithCount.filter(cat => (cat.player_count || 0) > 0);
+      setCategories(nonEmptyCategories);
+    } else {
+      setCategories([]);
+    }
   }
 
   async function loadPlayerCount(teamId: string, categoryId: string | null) {
@@ -133,23 +174,43 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel })
     );
   }
 
-  if (error || teams.length === 0) {
+  if (error || teams.length === 0 || totalTeamPlayerCount === 0) {
+    const noTeams = teams.length === 0;
+    const noPlayers = totalTeamPlayerCount === 0;
+    
     return (
       <div className="p-6 max-w-4xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg border border-red-200 p-12 text-center">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-900 mb-2">
-            {error || 'Nenhum time encontrado'}
+            {noTeams ? 'Nenhum time encontrado' : 
+             noPlayers ? 'Nenhum atleta encontrado' :
+             error}
           </h3>
           <p className="text-slate-600 mb-6">
-            Você precisa criar um time com atletas antes de iniciar uma sessão.
+            {noTeams 
+              ? 'Você precisa criar um time antes de iniciar uma sessão.'
+              : noPlayers
+              ? 'Adicione atletas ao seu time antes de iniciar uma sessão de treino.'
+              : 'Você precisa criar um time com atletas antes de iniciar uma sessão.'}
           </p>
-          <button
-            onClick={onCancel}
-            className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            Voltar ao Dashboard
-          </button>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={onCancel}
+              className="px-6 py-3 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+            >
+              Voltar ao Dashboard
+            </button>
+            {(noTeams || noPlayers) && onNavigateToTeams && (
+              <button
+                onClick={onNavigateToTeams}
+                className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium flex items-center gap-2"
+              >
+                <Users className="w-5 h-5" />
+                {noTeams ? 'Criar Time' : 'Adicionar Atletas'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -199,8 +260,12 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel })
               onChange={(e) => setSelectedCategoryId(e.target.value || null)}
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
             >
-              <option value="">Todos os Atletas do Time</option>
-              <option value="no-category">Sem Categoria</option>
+              {totalTeamPlayerCount > 0 && (
+                <option value="">Todos os Atletas do Time ({totalTeamPlayerCount} atletas)</option>
+              )}
+              {noCategoryPlayerCount > 0 && (
+                <option value="no-category">Sem Categoria ({noCategoryPlayerCount} atletas)</option>
+              )}
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name} {category.gender && `(${category.gender === 'masculino' ? '♂' : category.gender === 'feminino' ? '♀' : '⚥'})`}
@@ -208,9 +273,16 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel })
                 </option>
               ))}
             </select>
-            <p className="text-xs text-slate-500 mt-1">
-              Deixe em branco para avaliar todos os atletas do time
-            </p>
+            {categories.length === 0 && noCategoryPlayerCount === 0 && totalTeamPlayerCount > 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                ⚠️ Todos os atletas estão em categorias sem atletas ativos
+              </p>
+            )}
+            {(categories.length > 0 || noCategoryPlayerCount > 0) && (
+              <p className="text-xs text-slate-500 mt-1">
+                Apenas categorias com atletas estão disponíveis
+              </p>
+            )}
           </div>
 
           {/* Player Count Badge */}

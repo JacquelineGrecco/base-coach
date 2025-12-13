@@ -160,7 +160,7 @@ const Profile: React.FC = () => {
     setError('');
     setSaving(true);
 
-    const { error } = await userService.requestAccountDeletion(user.id, deleteReason);
+    const { error } = await userService.requestAccountDeactivation(user.id, deleteReason);
 
     if (error) {
       setError(error.message);
@@ -688,18 +688,22 @@ const Profile: React.FC = () => {
             <div className="border-t pt-6">
               <h3 className="text-lg font-semibold text-red-900 mb-4 flex items-center gap-2">
                 <Trash2 className="w-5 h-5" />
-                Deletar Conta
+                Desativar Conta
               </h3>
               
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-800 mb-2 font-semibold">
-                  ⚠️ Atenção: Esta ação é irreversível!
+                  ⚠️ Atenção: Sua conta será desativada!
                 </p>
                 <p className="text-sm text-red-800 mb-2">
-                  Ao deletar sua conta, todos os seus dados serão permanentemente removidos:
+                  Ao desativar sua conta:
                 </p>
                 <ul className="text-sm text-red-800 list-disc list-inside space-y-1">
-                  <li>Perfil e informações pessoais</li>
+                  <li>Sua conta será desativada imediatamente</li>
+                  <li>Você NÃO poderá fazer login</li>
+                  <li>Para reativar, você deve entrar em contato com o suporte via WhatsApp</li>
+                  <li>Após 365 dias inativa, todos os dados serão permanentemente removidos:</li>
+                  <li className="ml-6">• Perfil e informações pessoais</li>
                   <li>Todos os times criados</li>
                   <li>Todos os jogadores cadastrados</li>
                   <li>Histórico de sessões e avaliações</li>
@@ -740,8 +744,12 @@ const Profile: React.FC = () => {
                   className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Trash2 className="w-5 h-5" />
-                  {saving ? 'Deletando...' : 'Deletar Minha Conta Permanentemente'}
+                  {saving ? 'Desativando...' : 'Desativar Minha Conta'}
                 </button>
+                
+                <p className="mt-2 text-xs text-gray-600">
+                  💡 Você terá 365 dias para reativar via suporte. Após isso, os dados serão deletados permanentemente.
+                </p>
               </div>
             </div>
           </div>

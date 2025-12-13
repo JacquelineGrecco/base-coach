@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LogIn, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { userService } from '../../services/userService';
 
 interface LoginProps {
   onSwitchToSignup: () => void;
@@ -15,12 +16,64 @@ export function Login({ onSwitchToSignup, onForgotPassword }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [isAccountDeactivated, setIsAccountDeactivated] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockCountdown, setBlockCountdown] = useState(0);
+  
+  // WhatsApp support number from environment variable
+  // Format: Country code + DDD + number (no spaces/dashes)
+  // Example: 5511999999999 (55 = Brazil, 11 = São Paulo, 999999999 = number)
+  const SUPPORT_WHATSAPP = import.meta.env.VITE_SUPPORT_WHATSAPP || '5511999999999';
+
+  // Check for account lockout on mount
+  React.useEffect(() => {
+    const lockoutData = localStorage.getItem('login_lockout');
+    if (lockoutData) {
+      const { blockedUntil } = JSON.parse(lockoutData);
+      const now = Date.now();
+      if (blockedUntil > now) {
+        setIsBlocked(true);
+        setBlockCountdown(Math.ceil((blockedUntil - now) / 1000));
+      } else {
+        localStorage.removeItem('login_lockout');
+      }
+    }
+  }, []);
+
+  // Countdown timer for blocked account
+  React.useEffect(() => {
+    if (blockCountdown > 0) {
+      const timer = setTimeout(() => {
+        setBlockCountdown(blockCountdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (blockCountdown === 0 && isBlocked) {
+      setIsBlocked(false);
+      localStorage.removeItem('login_lockout');
+    }
+  }, [blockCountdown, isBlocked]);
+
+  // Handle WhatsApp support contact
+  function handleContactSupport() {
+    const message = encodeURIComponent(
+      `Olá! Minha conta do BaseCoach foi desativada e gostaria de reativá-la.\n\nEmail: ${email}`
+    );
+    const whatsappUrl = `https://wa.me/${SUPPORT_WHATSAPP}?text=${message}`;
+    window.open(whatsappUrl, '_blank');
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     clearProfileError(); // Clear any previous profile errors
+    setIsAccountDeactivated(false);
     
+    // Check if account is blocked
+    if (isBlocked) {
+      setError(`Conta temporariamente bloqueada. Aguarde ${blockCountdown} segundos.`);
+      return;
+    }
+
     // Validate required fields in Portuguese
     if (!email.trim()) {
       setError('Por favor, preencha seu email');
@@ -35,19 +88,46 @@ export function Login({ onSwitchToSignup, onForgotPassword }: LoginProps) {
     setLoading(true);
 
     try {
+      // First, try to sign in to get the user ID
       const { error } = await signIn(email, password);
+      
       if (error) {
+        // Track failed attempts
+        const attemptsKey = `login_attempts_${email}`;
+        const attempts = parseInt(localStorage.getItem(attemptsKey) || '0') + 1;
+        localStorage.setItem(attemptsKey, attempts.toString());
+
+        // Block after 3 failed attempts
+        if (attempts >= 3) {
+          const blockedUntil = Date.now() + 60000; // 60 seconds
+          localStorage.setItem('login_lockout', JSON.stringify({ blockedUntil, email }));
+          localStorage.removeItem(attemptsKey);
+          setIsBlocked(true);
+          setBlockCountdown(60);
+          setError('Muitas tentativas incorretas. Conta bloqueada por 60 segundos.');
+          setLoading(false);
+          return;
+        }
+
+        const remainingAttempts = 3 - attempts;
+
         // Translate Supabase errors to user-friendly Portuguese messages
         if (error.message.includes('Invalid login credentials')) {
-          setError('Email ou senha incorretos. Verifique suas credenciais e tente novamente.');
+          setError(`Email ou senha incorretos. ${remainingAttempts} tentativas restantes.`);
         } else if (error.message.includes('Email not confirmed')) {
           setError('Email não confirmado. Verifique sua caixa de entrada.');
+          localStorage.removeItem(attemptsKey); // Don't count this as failed attempt
         } else if (error.message.includes('User not found')) {
           setError('Usuário não encontrado. Você já possui uma conta?');
+          setIsAccountDeactivated(true);
         } else {
           // Fallback for other errors
           setError('Erro ao fazer login. Tente novamente ou entre em contato com o suporte.');
         }
+      } else {
+        // Successful login - clear attempts
+        const attemptsKey = `login_attempts_${email}`;
+        localStorage.removeItem(attemptsKey);
       }
     } catch (err) {
       setError('Erro ao fazer login. Tente novamente.');
@@ -75,12 +155,39 @@ export function Login({ onSwitchToSignup, onForgotPassword }: LoginProps) {
             <div className="flex-1">
               {profileError && (
                 <div className="mb-2">
-                  <p className="text-sm text-red-600 font-semibold">Conta Deletada</p>
+                  <p className="text-sm text-red-600 font-semibold">Conta Desativada</p>
                   <p className="text-sm text-red-600">{profileError}</p>
+                  <button
+                    onClick={handleContactSupport}
+                    className="mt-2 flex items-center gap-2 text-sm text-green-600 hover:text-green-700 font-medium underline"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                    Falar com Suporte via WhatsApp
+                  </button>
                 </div>
               )}
               {error && !profileError && (
-                <p className="text-sm text-red-600">{error}</p>
+                <>
+                  <p className="text-sm text-red-600">{error}</p>
+                  {isAccountDeactivated && (
+                    <button
+                      onClick={handleContactSupport}
+                      className="mt-2 flex items-center gap-2 text-sm text-green-600 hover:text-green-700 font-medium underline"
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                      </svg>
+                      Falar com Suporte via WhatsApp
+                    </button>
+                  )}
+                  {isBlocked && blockCountdown > 0 && (
+                    <p className="mt-2 text-sm text-red-700 font-semibold">
+                      ⏱️ Aguarde {blockCountdown} segundos para tentar novamente
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
