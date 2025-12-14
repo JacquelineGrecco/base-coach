@@ -962,7 +962,8 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
     );
   }
 
-  if (sessions.length === 0 && selectedPlayerId) {
+  // Only show player empty state if we're actually in player view mode
+  if (sessions.length === 0 && selectedPlayerId && viewMode === 'player') {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
