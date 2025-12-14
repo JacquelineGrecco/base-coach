@@ -176,7 +176,7 @@ function AppContent() {
           }}
         />;
       case "TEAMS":
-        return <TeamsContainer />;
+        return <TeamsContainer onUpgradeClick={() => setCurrentView("PRICING")} />;
       default:
         return <Dashboard 
           onStartSession={handleStartSessionSetup}

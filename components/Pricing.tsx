@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, Zap, Award, Building2, MessageCircle } from 'lucide-react';
 import { subscriptionService, SubscriptionInfo, TIER_INFO } from '../services/subscriptionService';
+import { TrialModal } from './TrialModal';
 
 interface PricingProps {
   onStartTrial?: () => void;
@@ -11,6 +12,7 @@ export function Pricing({ onStartTrial, onUpgrade }: PricingProps) {
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showTrialModal, setShowTrialModal] = useState(false);
 
   useEffect(() => {
     loadSubscription();
@@ -148,13 +150,20 @@ export function Pricing({ onStartTrial, onUpgrade }: PricingProps) {
       return;
     }
 
-    if (tier.id === 'pro' && tier.trialAvailable && onStartTrial) {
-      onStartTrial();
+    if (tier.id === 'pro' && tier.trialAvailable) {
+      setShowTrialModal(true);
       return;
     }
 
     if (onUpgrade && (tier.id === 'pro' || tier.id === 'premium')) {
       onUpgrade(tier.id);
+    }
+  }
+
+  function handleStartTrial() {
+    setShowTrialModal(false);
+    if (onStartTrial) {
+      onStartTrial();
     }
   }
 
@@ -195,6 +204,13 @@ export function Pricing({ onStartTrial, onUpgrade }: PricingProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
+      {/* Trial Modal */}
+      <TrialModal
+        isOpen={showTrialModal}
+        onClose={() => setShowTrialModal(false)}
+        onStartTrial={handleStartTrial}
+      />
+
       {/* Header */}
       <div className="text-center pt-16 pb-12 px-4">
         <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
@@ -431,7 +447,7 @@ export function Pricing({ onStartTrial, onUpgrade }: PricingProps) {
             Junte-se a centenas de treinadores que já confiam no BaseCoach
           </p>
           <button
-            onClick={() => onStartTrial && onStartTrial()}
+            onClick={() => setShowTrialModal(true)}
             className="bg-white text-blue-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-blue-50 transition-colors shadow-xl"
           >
             Começar Teste Grátis de 14 Dias

@@ -5,7 +5,11 @@ import Players from './Players';
 
 type TeamView = 'list' | 'detail' | 'players';
 
-const TeamsContainer: React.FC = () => {
+interface TeamsContainerProps {
+  onUpgradeClick?: () => void;
+}
+
+const TeamsContainer: React.FC<TeamsContainerProps> = ({ onUpgradeClick }) => {
   const [currentView, setCurrentView] = useState<TeamView>('list');
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -35,11 +39,11 @@ const TeamsContainer: React.FC = () => {
 
   switch (currentView) {
     case 'list':
-      return <Teams onViewTeamDetail={handleViewTeamDetail} />;
+      return <Teams onViewTeamDetail={handleViewTeamDetail} onUpgradeClick={onUpgradeClick} />;
     
     case 'detail':
       if (!selectedTeamId) {
-        return <Teams onViewTeamDetail={handleViewTeamDetail} />;
+        return <Teams onViewTeamDetail={handleViewTeamDetail} onUpgradeClick={onUpgradeClick} />;
       }
       return (
         <TeamDetail
@@ -51,7 +55,7 @@ const TeamsContainer: React.FC = () => {
     
     case 'players':
       if (!selectedTeamId) {
-        return <Teams onViewTeamDetail={handleViewTeamDetail} />;
+        return <Teams onViewTeamDetail={handleViewTeamDetail} onUpgradeClick={onUpgradeClick} />;
       }
       return (
         <Players
@@ -63,7 +67,7 @@ const TeamsContainer: React.FC = () => {
       );
     
     default:
-      return <Teams onViewTeamDetail={handleViewTeamDetail} />;
+      return <Teams onViewTeamDetail={handleViewTeamDetail} onUpgradeClick={onUpgradeClick} />;
   }
 };
 
