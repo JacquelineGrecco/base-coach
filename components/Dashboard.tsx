@@ -530,11 +530,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
                 </button>
                 <button
                   onClick={() => {
-                    if (onNavigateToReports && sessionEvaluations.length > 0) {
-                      // Pass the first evaluated player's ID
-                      const firstEvaluation = sessionEvaluations[0];
-                      const playerId = firstEvaluation?.players?.id;
-                      onNavigateToReports(selectedSession.team_id, playerId);
+                    if (onNavigateToReports) {
+                      if (sessionEvaluations.length > 0) {
+                        // Pass the first evaluated player's ID
+                        const firstEvaluation = sessionEvaluations[0];
+                        const playerId = firstEvaluation?.players?.id;
+                        console.log('Navigating to Reports:', {
+                          teamId: selectedSession.team_id,
+                          playerId,
+                          playerName: firstEvaluation?.players?.name
+                        });
+                        onNavigateToReports(selectedSession.team_id, playerId);
+                      } else {
+                        // No evaluations, just go to team view
+                        onNavigateToReports(selectedSession.team_id);
+                      }
                     }
                   }}
                   className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"

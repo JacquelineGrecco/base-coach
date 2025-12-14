@@ -85,8 +85,17 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
 
   // Set preselected player if provided (from session details)
   useEffect(() => {
+    console.log('Reports - preselected player check:', {
+      preselectedPlayerId,
+      playersCount: players.length,
+      fromSessionDetails,
+      players: players.map(p => ({ id: p.id, name: p.name }))
+    });
+    
     if (preselectedPlayerId && players.length > 0 && fromSessionDetails) {
       const playerExists = players.find(p => p.id === preselectedPlayerId);
+      console.log('Player found:', playerExists);
+      
       if (playerExists) {
         setSelectedPlayerId(preselectedPlayerId);
         setViewMode('player'); // Switch to player view
