@@ -134,8 +134,8 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
 
       setTeams(teamsData || []);
       
-      // Auto-select first team
-      if (teamsData && teamsData.length > 0) {
+      // Auto-select first team (will be overridden by preselected team if exists)
+      if (teamsData && teamsData.length > 0 && !selectedTeamId) {
         setSelectedTeamId(teamsData[0].id);
       }
     } catch (err: any) {
