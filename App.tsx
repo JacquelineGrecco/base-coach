@@ -11,8 +11,10 @@ import DrillLibrary from './components/DrillLibrary';
 import Reports from './components/Reports';
 import Profile from './components/Profile';
 import TeamsContainer from './components/Teams/TeamsContainer';
+import { Pricing } from './components/Pricing';
 import { ViewState, Evaluation } from './types';
 import { sessionService } from './services/sessionService';
+import { subscriptionService } from './services/subscriptionService';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -74,7 +76,7 @@ function AppContent() {
         Object.entries(evaluation.scores).map(([valenceId, score]) => ({
           player_id: evaluation.playerId,
           valence_id: valenceId, // Using valence_id (as per migration 019)
-          score: score,
+          score: Number(score),
         }))
       );
 
@@ -158,6 +160,21 @@ function AppContent() {
         />;
       case "PROFILE":
         return <Profile />;
+      case "PRICING":
+        return <Pricing 
+          onStartTrial={async () => {
+            if (!user?.id) return;
+            await subscriptionService.startTrial(user.id);
+            alert('Trial iniciado com sucesso! Você tem 14 dias para testar todos os recursos Pro.');
+            setCurrentView("DASHBOARD");
+          }}
+          onUpgrade={async (tier: string) => {
+            if (!user?.id) return;
+            await subscriptionService.changeSubscriptionTier(user.id, tier as any);
+            alert(`Plano alterado para ${tier} com sucesso!`);
+            setCurrentView("DASHBOARD");
+          }}
+        />;
       case "TEAMS":
         return <TeamsContainer />;
       default:

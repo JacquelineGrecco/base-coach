@@ -21,7 +21,7 @@ export interface SessionEvaluation {
   id: string;
   session_id: string;
   player_id: string;
-  valence: string; // Changed from valence_id to valence (TEXT column)
+  valence_id: string; // Renamed from valence to valence_id (matches DB schema)
   score: number; // 0-5
   notes?: string;
   created_at: string;
@@ -171,7 +171,7 @@ export const sessionService = {
     sessionId: string,
     evaluations: Array<{
       player_id: string;
-      valence: string; // Changed from valence_id to valence (TEXT column)
+      valence_id: string; // Renamed from valence to valence_id (matches DB schema)
       score: number;
       notes?: string;
     }>
@@ -259,22 +259,22 @@ export const sessionService = {
 
       // Calculate averages by valence
       const statsByValence = (data || []).reduce((acc: any, evaluation: any) => {
-        if (!acc[evaluation.valence]) {
-          acc[evaluation.valence] = {
+        if (!acc[evaluation.valence_id]) {
+          acc[evaluation.valence_id] = {
             total: 0,
             count: 0,
             scores: [],
           };
         }
-        acc[evaluation.valence].total += evaluation.score;
-        acc[evaluation.valence].count += 1;
-        acc[evaluation.valence].scores.push(evaluation.score);
+        acc[evaluation.valence_id].total += evaluation.score;
+        acc[evaluation.valence_id].count += 1;
+        acc[evaluation.valence_id].scores.push(evaluation.score);
         return acc;
       }, {});
 
       // Calculate averages
       const stats = Object.entries(statsByValence).map(([valence, data]: [string, any]) => ({
-        valence: valence, // Changed from valence_id to valence
+        valence_id: valence, // Using valence_id (matches DB schema)
         average: data.total / data.count,
         count: data.count,
         min: Math.min(...data.scores),

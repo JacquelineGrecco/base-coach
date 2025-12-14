@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu, Settings, Users, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu, Settings, Users, MessageCircle, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
@@ -65,6 +65,7 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
             <NavItem view="SESSION_SETUP" icon={PlayCircle} label="Sessão ao Vivo" />
             <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
             <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
+            <NavItem view="PRICING" icon={CreditCard} label="Planos" />
             <NavItem view="PROFILE" icon={Settings} label="Configurações" />
         </nav>
 
@@ -112,6 +113,7 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
                 <NavItem view="SESSION_SETUP" icon={PlayCircle} label="Sessão ao Vivo" />
                 <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
                 <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
+                <NavItem view="PRICING" icon={CreditCard} label="Planos" />
                 <NavItem view="PROFILE" icon={Settings} label="Configurações" />
                 <div className="pt-4 mt-auto space-y-2">
                   <button 
