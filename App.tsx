@@ -12,9 +12,11 @@ import Reports from './components/Reports';
 import Profile from './components/Profile';
 import TeamsContainer from './components/Teams/TeamsContainer';
 import { Pricing } from './components/Pricing';
+import { TrialModal } from './components/TrialModal';
+import { TrialExpirationModal } from './components/TrialExpirationModal';
 import { ViewState, Evaluation } from './types';
 import { sessionService } from './services/sessionService';
-import { subscriptionService } from './services/subscriptionService';
+import { subscriptionService, SubscriptionInfo } from './services/subscriptionService';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -23,6 +25,11 @@ function AppContent() {
   const [preselectedTeamId, setPreselectedTeamId] = useState<string | null>(null);
   const [preselectedPlayerId, setPreselectedPlayerId] = useState<string | null>(null);
   const [fromSessionDetails, setFromSessionDetails] = useState(false);
+  
+  // Trial modal state
+  const [showTrialModal, setShowTrialModal] = useState(false);
+  const [showTrialExpirationModal, setShowTrialExpirationModal] = useState(false);
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
 
   // Check if we're in password recovery mode
   React.useEffect(() => {
@@ -33,6 +40,47 @@ function AppContent() {
       setIsRecoveryMode(true);
     }
   }, []);
+
+  // Load subscription and check for trial expiration warnings
+  React.useEffect(() => {
+    if (user) {
+      loadSubscriptionAndCheckTrial();
+    }
+  }, [user]);
+
+  async function loadSubscriptionAndCheckTrial() {
+    const data = await subscriptionService.getUserSubscription();
+    if (!data) {
+      console.error('Error loading subscription');
+      return;
+    }
+    setSubscription(data);
+
+    // Check if trial is expiring soon
+    if (data.trialEndsAt) {
+      const daysLeft = await subscriptionService.getTrialDaysRemaining();
+      
+      // Show modal at 7, 3, and 0 days
+      const lastWarning = localStorage.getItem('lastTrialWarning');
+      const today = new Date().toDateString();
+      
+      if (daysLeft !== null && (daysLeft === 7 || daysLeft === 3 || daysLeft === 0) && lastWarning !== today) {
+        setShowTrialExpirationModal(true);
+        localStorage.setItem('lastTrialWarning', today);
+      }
+    }
+  }
+
+  const handleStartTrial = async () => {
+    if (!user?.id) return;
+    try {
+      await subscriptionService.startTrial();
+      alert('✨ Teste Pro iniciado com sucesso! Você tem 14 dias para explorar todos os recursos.');
+      await loadSubscriptionAndCheckTrial(); // Reload subscription
+    } catch (error: any) {
+      alert('Erro ao iniciar teste: ' + error.message);
+    }
+  };
   // Session state
   const [sessionEvaluations, setSessionEvaluations] = useState<Evaluation[]>([]);
   const [sessionData, setSessionData] = useState<{
@@ -162,16 +210,14 @@ function AppContent() {
         return <Profile />;
       case "PRICING":
         return <Pricing 
-          onStartTrial={async () => {
-            if (!user?.id) return;
-            await subscriptionService.startTrial(user.id);
-            alert('Trial iniciado com sucesso! Você tem 14 dias para testar todos os recursos Pro.');
-            setCurrentView("DASHBOARD");
+          onStartTrial={() => {
+            setShowTrialModal(true);
           }}
           onUpgrade={async (tier: string) => {
             if (!user?.id) return;
-            await subscriptionService.changeSubscriptionTier(user.id, tier as any);
+            await subscriptionService.updateSubscriptionTier(user.id, tier as any);
             alert(`Plano alterado para ${tier} com sucesso!`);
+            await loadSubscriptionAndCheckTrial();
             setCurrentView("DASHBOARD");
           }}
         />;
@@ -246,6 +292,32 @@ function AppContent() {
   return (
     <Layout currentView={currentView} onChangeView={setCurrentView}>
       {renderView()}
+      
+      {/* Trial Modal */}
+      <TrialModal
+        isOpen={showTrialModal}
+        onClose={() => setShowTrialModal(false)}
+        onStartTrial={handleStartTrial}
+      />
+      
+      {/* Trial Expiration Modal */}
+      {subscription?.trialEndsAt && (
+        <TrialExpirationModal
+          isOpen={showTrialExpirationModal}
+          daysRemaining={(() => {
+            const now = new Date();
+            const trialEnd = new Date(subscription.trialEndsAt);
+            const diffTime = trialEnd.getTime() - now.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return Math.max(0, diffDays);
+          })()}
+          onClose={() => setShowTrialExpirationModal(false)}
+          onViewPricing={() => {
+            setShowTrialExpirationModal(false);
+            setCurrentView("PRICING");
+          }}
+        />
+      )}
     </Layout>
   );
 }

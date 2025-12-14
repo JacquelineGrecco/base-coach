@@ -10,118 +10,108 @@ interface TrialModalProps {
 export function TrialModal({ isOpen, onClose, onStartTrial }: TrialModalProps) {
   if (!isOpen) return null;
 
-  const proBenefits = [
-    'Até 5 times',
-    'Atletas ilimitados',
+  const trialFeatures = [
+    'Até 5 times com atletas ilimitados',
     'Gráficos de radar e evolução',
     '5 análises com IA por mês',
-    'Exportar PDF e CSV',
-    'Controle de presença',
-    'Relatórios avançados',
-    'Suporte prioritário'
+    'Exportar relatórios em PDF e CSV',
+    'Controle de presença dos atletas',
+    'Suporte prioritário via WhatsApp'
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 text-white p-8 rounded-t-2xl">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-fadeIn">
+        {/* Header with Gradient */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
+            className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full p-1 transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
-
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-              <Gift className="w-8 h-8 text-white" />
+          
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-white/20 p-3 rounded-full">
+              <Gift className="w-8 h-8" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold">Teste o Pro Grátis!</h2>
-              <p className="text-blue-100 text-lg">14 dias de acesso completo</p>
+              <h2 className="text-2xl font-bold">Teste o Plano Pro</h2>
+              <p className="text-blue-100 text-sm">14 dias grátis</p>
             </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-            <div className="flex items-center gap-3 mb-2">
-              <Zap className="w-5 h-5 text-yellow-300" />
-              <span className="font-semibold text-lg">Sem compromisso</span>
-            </div>
-            <ul className="space-y-1 text-sm text-blue-100">
-              <li>✓ Sem cartão de crédito</li>
-              <li>✓ Cancele a qualquer momento</li>
-              <li>✓ Acesso imediato a todos os recursos</li>
-            </ul>
           </div>
         </div>
 
-        {/* Benefits */}
-        <div className="p-8">
-          <h3 className="text-xl font-bold text-slate-900 mb-4">
-            O que você ganha com o Pro:
-          </h3>
-          <div className="grid md:grid-cols-2 gap-3 mb-6">
-            {proBenefits.map((benefit, idx) => (
-              <div key={idx} className="flex items-start gap-3">
-                <div className="w-5 h-5 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check className="w-3 h-3 text-emerald-600" />
-                </div>
-                <span className="text-slate-700">{benefit}</span>
-              </div>
-            ))}
+        {/* Content */}
+        <div className="p-6">
+          {/* No Credit Card Badge */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-6 flex items-center gap-3">
+            <div className="bg-emerald-500 text-white rounded-full p-2">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-emerald-900">Sem cartão de crédito</p>
+              <p className="text-sm text-emerald-700">Cancele a qualquer momento</p>
+            </div>
           </div>
 
-          {/* Pricing Preview */}
-          <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6 mb-6 border border-slate-200">
+          {/* Features List */}
+          <div className="mb-6">
+            <h3 className="font-semibold text-slate-900 mb-3">
+              O que você vai experimentar:
+            </h3>
+            <ul className="space-y-2">
+              {trialFeatures.map((feature, idx) => (
+                <li key={idx} className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-slate-700">{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Timeline */}
+          <div className="bg-slate-50 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-slate-600">Após o teste grátis:</span>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-slate-900">R$ 49,90</div>
-                <div className="text-sm text-slate-500">por mês</div>
+              <span className="text-sm font-medium text-slate-600">Hoje</span>
+              <span className="text-sm font-medium text-slate-600">Dia 14</span>
+            </div>
+            <div className="relative">
+              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-pulse"></div>
               </div>
             </div>
-            <p className="text-xs text-slate-500 text-center mt-3">
-              Você será notificado 7 dias antes do fim do período de teste
+            <p className="text-xs text-slate-500 text-center mt-2">
+              Você será notificado antes do fim do período de teste
             </p>
           </div>
 
           {/* CTA Buttons */}
           <div className="space-y-3">
             <button
-              onClick={onStartTrial}
-              className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold text-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              onClick={() => {
+                onStartTrial();
+                onClose();
+              }}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-lg font-bold text-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
             >
-              🎉 Iniciar Teste Grátis Agora
+              Começar Teste Grátis Agora
             </button>
             <button
               onClick={onClose}
-              className="w-full py-3 px-6 text-slate-600 hover:text-slate-800 transition-colors font-medium"
+              className="w-full text-slate-600 hover:text-slate-900 py-2 transition-colors"
             >
               Talvez mais tarde
             </button>
           </div>
 
-          {/* Trust Badges */}
-          <div className="mt-6 pt-6 border-t border-slate-200">
-            <div className="flex flex-wrap justify-center gap-4 text-xs text-slate-500">
-              <span className="flex items-center gap-1">
-                <Check className="w-4 h-4 text-emerald-600" />
-                Dados seguros
-              </span>
-              <span className="flex items-center gap-1">
-                <Check className="w-4 h-4 text-emerald-600" />
-                Cancele quando quiser
-              </span>
-              <span className="flex items-center gap-1">
-                <Check className="w-4 h-4 text-emerald-600" />
-                Suporte prioritário
-              </span>
-            </div>
-          </div>
+          {/* Fine Print */}
+          <p className="text-xs text-slate-400 text-center mt-4">
+            Após o período de teste, você pode escolher assinar o plano Pro ou continuar no plano Free.
+            Não há cobrança automática.
+          </p>
         </div>
       </div>
     </div>
   );
 }
-
