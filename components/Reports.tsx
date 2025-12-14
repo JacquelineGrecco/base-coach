@@ -965,24 +965,70 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
   // Only show player empty state if we're actually in player view mode
   if (sessions.length === 0 && selectedPlayerId && viewMode === 'player') {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-slate-900">Relatórios dos Atletas</h1>
           <p className="text-slate-600 mt-1">Análise de desempenho e progresso</p>
         </div>
 
-        {/* Team Selector */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-6">
+        {/* Team Selector and View Mode Tabs */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
           <label className="block text-sm font-medium text-slate-700 mb-2">Selecionar Time</label>
           <select
             value={selectedTeamId}
             onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
           >
             {teams.map(team => (
               <option key={team.id} value={team.id}>
                 {team.name} ({team.player_count || 0} atletas)
+              </option>
+            ))}
+          </select>
+
+          {/* View Mode Tabs */}
+          <div className="flex gap-2 border-t border-slate-200 pt-4">
+            <button
+              onClick={() => setViewMode('team')}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                viewMode === 'team'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Users className="w-4 h-4" />
+                Visão Geral do Time
+              </div>
+            </button>
+            <button
+              onClick={() => setViewMode('player')}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                viewMode === 'player'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <User className="w-4 h-4" />
+                Atleta Individual
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Player Selector */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+          <label className="block text-sm font-medium text-slate-700 mb-2">Selecionar Atleta</label>
+          <select
+            value={selectedPlayerId}
+            onChange={(e) => setSelectedPlayerId(e.target.value)}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {players.map(player => (
+              <option key={player.id} value={player.id}>
+                {player.jersey_number ? `#${player.jersey_number} - ` : ''}{player.name} {player.position ? `(${player.position})` : ''}
               </option>
             ))}
           </select>
