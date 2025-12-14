@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, User, Edit2, Trash2, AlertCircle, CheckCircle, UserX } from 'lucide-react';
+import { ArrowLeft, Plus, User, Edit2, Trash2, AlertCircle, CheckCircle, UserX, Lock, Crown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { subscriptionService, SubscriptionInfo } from '../../services/subscriptionService';
 
 // Futsal positions
 export type PlayerPosition = 'Goleiro' | 'Fixo' | 'Ala' | 'Pivô';
@@ -25,6 +26,7 @@ interface PlayersProps {
   categoryId: string | null;
   categoryName: string;
   onBack: () => void;
+  onUpgradeClick?: () => void;
 }
 
 interface Category {
@@ -33,7 +35,7 @@ interface Category {
   gender?: string;
 }
 
-const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onBack }) => {
+const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onBack, onUpgradeClick }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,7 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -74,7 +77,16 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
   useEffect(() => {
     loadPlayers();
     loadCategories();
+    loadSubscription();
   }, [teamId, categoryId]);
+
+  async function loadSubscription() {
+    const data = await subscriptionService.getUserSubscription();
+    if (!data) {
+      console.error('Error loading subscription');
+    }
+    setSubscription(data);
+  }
 
   async function loadPlayers() {
     setLoading(true);
@@ -391,6 +403,19 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
     );
   }
 
+  // Get tier limits
+  const tierLimits = subscription ? subscriptionService.getTierLimits(subscription.tier) : null;
+  const playerLimit = tierLimits?.playersPerTeam || 15;
+  const isUnlimited = playerLimit === Infinity;
+  const atPlayerLimit = !isUnlimited && players.length >= playerLimit;
+
+  function handleCreateButtonClick() {
+    if (atPlayerLimit) {
+      return; // Button will be disabled anyway
+    }
+    setShowCreateModal(true);
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       {/* Header */}
@@ -411,13 +436,37 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
             </p>
           </div>
           
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Adicionar Atleta
-          </button>
+          <div className="text-right">
+            {subscription && (
+              <div className={`text-2xl font-bold mb-2 ${atPlayerLimit ? 'text-red-600' : 'text-slate-900'}`}>
+                {isUnlimited ? (
+                  <span className="flex items-center gap-2">
+                    <Crown className="w-6 h-6 text-yellow-500" />
+                    Ilimitado
+                  </span>
+                ) : (
+                  <span>{players.length}/{playerLimit}</span>
+                )}
+              </div>
+            )}
+            <button
+              onClick={handleCreateButtonClick}
+              disabled={atPlayerLimit}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+                atPlayerLimit
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+              }`}
+            >
+              {atPlayerLimit ? <Lock className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+              Adicionar Atleta
+            </button>
+            {atPlayerLimit && (
+              <p className="text-xs text-red-600 mt-1">
+                Limite atingido • <button onClick={() => onUpgradeClick && onUpgradeClick()} className="underline font-semibold">Fazer upgrade</button>
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -447,12 +496,22 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
             Comece adicionando atletas a esta categoria.
           </p>
           <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors"
+            onClick={handleCreateButtonClick}
+            disabled={atPlayerLimit}
+            className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg transition-colors ${
+              atPlayerLimit
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+            }`}
           >
-            <Plus className="w-5 h-5" />
+            {atPlayerLimit ? <Lock className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
             Adicionar Primeiro Atleta
           </button>
+          {atPlayerLimit && (
+            <p className="text-xs text-red-600 mt-2">
+              Limite atingido • <button onClick={() => onUpgradeClick && onUpgradeClick()} className="underline font-semibold">Fazer upgrade</button>
+            </p>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">

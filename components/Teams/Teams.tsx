@@ -38,9 +38,9 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail, onUpgradeClick }) => {
   }, [showArchived]);
 
   async function loadSubscription() {
-    const { data, error } = await subscriptionService.getUserSubscription();
-    if (error) {
-      console.error('Error loading subscription:', error);
+    const data = await subscriptionService.getUserSubscription();
+    if (!data) {
+      console.error('Error loading subscription');
     }
     setSubscription(data);
   }
@@ -63,10 +63,14 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail, onUpgradeClick }) => {
     if (!subscription) return { allowed: true }; // Loading or not available
     
     const activeTeamsCount = teams.filter(t => !t.is_archived).length;
-    const result = subscriptionService.hasReachedTeamLimit(subscription, activeTeamsCount);
+    const limits = subscriptionService.getTierLimits(subscription.tier);
+    const maxTeams = limits.teams;
     
-    if (!result.allowed) {
-      return { allowed: false, reason: result.message };
+    if (maxTeams !== Infinity && activeTeamsCount >= maxTeams) {
+      return { 
+        allowed: false, 
+        reason: `Você atingiu o limite de ${maxTeams} time${maxTeams > 1 ? 's' : ''} do plano ${subscription.tier}. Faça upgrade para criar mais times.`
+      };
     }
     
     return { allowed: true };
@@ -215,8 +219,9 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail, onUpgradeClick }) => {
   const displayTeams = showArchived ? archivedTeams : activeTeams;
 
   // Get tier limits
-  const teamLimit = subscription ? subscriptionService.getFeatureLimit(subscription, 'max_teams') : 1;
-  const isUnlimited = teamLimit === 99999;
+  const tierLimits = subscription ? subscriptionService.getTierLimits(subscription.tier) : null;
+  const teamLimit = tierLimits?.teams || 1;
+  const isUnlimited = teamLimit === Infinity;
   const atTeamLimit = !isUnlimited && activeTeams.length >= teamLimit;
 
   return (
