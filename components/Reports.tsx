@@ -40,10 +40,11 @@ interface EvolutionData {
 
 interface ReportsProps {
   preselectedTeamId?: string | null;
+  fromSessionDetails?: boolean;
   onTeamChange?: () => void;
 }
 
-const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, onTeamChange }) => {
+const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, fromSessionDetails, onTeamChange }) => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [players, setPlayers] = useState<Player[]>([]);
@@ -73,9 +74,13 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, onTeamChange }) =>
       const teamExists = teams.find(t => t.id === preselectedTeamId);
       if (teamExists) {
         setSelectedTeamId(preselectedTeamId);
+        // If coming from session details, show team view
+        if (fromSessionDetails) {
+          setViewMode('team');
+        }
       }
     }
-  }, [preselectedTeamId, teams]);
+  }, [preselectedTeamId, teams, fromSessionDetails]);
 
   // Load players and team stats when team changes
   useEffect(() => {
