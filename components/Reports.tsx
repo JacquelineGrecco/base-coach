@@ -7,6 +7,8 @@ import { sessionService, SessionEvaluation } from '../services/sessionService';
 import { teamService, Team } from '../services/teamService';
 import jsPDF from 'jspdf';
 import { generatePlayerInsights, PlayerInsights } from '../services/geminiService';
+import { subscriptionService, SubscriptionInfo, TIER_FEATURES } from '../services/subscriptionService';
+import { UpgradePrompt } from './UpgradePrompt';
 
 interface Player {
   id: string;
@@ -63,11 +65,20 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
   const [aiInsights, setAiInsights] = useState<PlayerInsights | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  
+  // Subscription state
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
 
   // Load teams on mount
   useEffect(() => {
     loadTeams();
+    loadSubscription();
   }, []);
+
+  async function loadSubscription() {
+    const sub = await subscriptionService.getUserSubscription();
+    setSubscription(sub);
+  }
 
   // Set preselected team if provided
   useEffect(() => {
@@ -1362,24 +1373,39 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
 
       {/* Radar Chart */}
       {radarChartData.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Desempenho por Critério</h3>
-          <ResponsiveContainer width="100%" height={400}>
-            <RadarChart data={radarChartData}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="subject" />
-              <PolarRadiusAxis domain={[0, 5]} />
-              <Radar
-                name={selectedPlayer?.name}
-                dataKey="score"
-                stroke="#3b82f6"
-                fill="#3b82f6"
-                fillOpacity={0.6}
-              />
-              <Legend />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
+        subscription && TIER_FEATURES[subscription.tier].radarCharts ? (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Desempenho por Critério</h3>
+            <ResponsiveContainer width="100%" height={400}>
+              <RadarChart data={radarChartData}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="subject" />
+                <PolarRadiusAxis domain={[0, 5]} />
+                <Radar
+                  name={selectedPlayer?.name}
+                  dataKey="score"
+                  stroke="#3b82f6"
+                  fill="#3b82f6"
+                  fillOpacity={0.6}
+                />
+                <Legend />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <UpgradePrompt
+            feature="Gráficos Radar"
+            description="Visualize o desempenho do atleta em todos os critérios de uma vez com gráficos radar interativos e profissionais."
+            requiredTier="pro"
+            size="medium"
+            showPreview={true}
+            previewElement={
+              <div className="h-64 flex items-center justify-center bg-slate-100">
+                <div className="text-6xl text-slate-300">📊</div>
+              </div>
+            }
+          />
+        )
       )}
 
       {/* Detailed Stats Table */}
