@@ -22,7 +22,7 @@ export interface TierLimits {
   teams: number;
   playersPerTeam: number;
   aiInsightsPerMonth: number;
-  sessionHistoryDays: number;
+  sessionHistoryDays: number | 'unlimited';
 }
 
 export interface TierFeatures {
@@ -41,7 +41,7 @@ export interface TierFeatures {
 }
 
 // =====================================================
-// Configuration
+// Constants
 // =====================================================
 
 export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
@@ -55,19 +55,19 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     teams: 5,
     playersPerTeam: Infinity,
     aiInsightsPerMonth: 5,
-    sessionHistoryDays: Infinity,
+    sessionHistoryDays: 'unlimited',
   },
   premium: {
     teams: Infinity,
     playersPerTeam: Infinity,
     aiInsightsPerMonth: Infinity,
-    sessionHistoryDays: Infinity,
+    sessionHistoryDays: 'unlimited',
   },
   enterprise: {
     teams: Infinity,
     playersPerTeam: Infinity,
     aiInsightsPerMonth: Infinity,
-    sessionHistoryDays: Infinity,
+    sessionHistoryDays: 'unlimited',
   },
 };
 
@@ -130,27 +130,53 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
   },
 };
 
-export const TIER_PRICES = {
-  free: { monthly: 0, yearly: 0 },
-  pro: { monthly: 49, yearly: 490 }, // Save 17% on yearly
-  premium: { monthly: 149, yearly: 1490 }, // Save 17% on yearly
-  enterprise: { monthly: 500, yearly: 5000 }, // Custom pricing
-};
-
-export const TIER_NAMES = {
-  free: 'Gratuito',
-  pro: 'Pro',
-  premium: 'Premium',
-  enterprise: 'Enterprise',
+export const TIER_INFO = {
+  free: {
+    name: 'Gratuito',
+    displayName: 'Free',
+    price: 'R$0',
+    priceMonthly: 0,
+    priceYearly: 0,
+    description: 'Para testar e conhecer a plataforma',
+    color: 'gray',
+  },
+  pro: {
+    name: 'Profissional',
+    displayName: 'Pro',
+    price: 'R$49',
+    priceMonthly: 49,
+    priceYearly: 490, // Save 17%
+    description: 'Para treinadores sérios',
+    color: 'blue',
+    popular: true,
+  },
+  premium: {
+    name: 'Premium',
+    displayName: 'Premium',
+    price: 'R$149',
+    priceMonthly: 149,
+    priceYearly: 1490, // Save 17%
+    description: 'Para academias e múltiplos times',
+    color: 'purple',
+  },
+  enterprise: {
+    name: 'Empresarial',
+    displayName: 'Enterprise',
+    price: 'Sob consulta',
+    priceMonthly: null,
+    priceYearly: null,
+    description: 'Para clubes e organizações',
+    color: 'slate',
+  },
 };
 
 // =====================================================
-// Subscription Service
+// Subscription Service Class
 // =====================================================
 
 class SubscriptionService {
   /**
-   * Get user's current subscription information
+   * Get current user's subscription information
    */
   async getUserSubscription(): Promise<SubscriptionInfo | null> {
     try {
@@ -165,17 +191,17 @@ class SubscriptionService {
 
       if (error) throw error;
 
-      const tier = (data.subscription_tier || 'free') as SubscriptionTier;
+      const tier = (data.subscription_tier as SubscriptionTier) || 'free';
       const aiInsightsLimit = TIER_LIMITS[tier].aiInsightsPerMonth;
 
       return {
         tier,
-        status: (data.subscription_status || 'active') as SubscriptionStatus,
+        status: (data.subscription_status as SubscriptionStatus) || 'active',
         startDate: data.subscription_start_date,
         endDate: data.subscription_end_date,
         trialEndsAt: data.trial_ends_at,
         aiInsightsUsed: data.ai_insights_used || 0,
-        aiInsightsLimit,
+        aiInsightsLimit: typeof aiInsightsLimit === 'number' ? aiInsightsLimit : Infinity,
         aiInsightsResetAt: data.ai_insights_reset_at,
       };
     } catch (error: any) {
@@ -192,83 +218,59 @@ class SubscriptionService {
   }
 
   /**
-   * Get limits for a specific tier
+   * Get tier limits for a specific tier
    */
   getTierLimits(tier: SubscriptionTier): TierLimits {
     return TIER_LIMITS[tier];
   }
 
   /**
-   * Get features for a specific tier
+   * Get tier features for a specific tier
    */
   getTierFeatures(tier: SubscriptionTier): TierFeatures {
     return TIER_FEATURES[tier];
   }
 
   /**
-   * Check if user can use AI insights (considers quota)
+   * Check if user can use AI insights (with quota check)
    */
-  async canUseAIInsights(): Promise<{ allowed: boolean; used: number; limit: number; message?: string }> {
+  async canUseAIInsights(): Promise<{ 
+    allowed: boolean; 
+    used: number; 
+    limit: number; 
+    remaining: number;
+  }> {
     const subscription = await this.getUserSubscription();
     
     if (!subscription) {
-      return { 
-        allowed: false, 
-        used: 0, 
-        limit: 0,
-        message: 'Você precisa estar logado para usar insights de IA.'
-      };
+      return { allowed: false, used: 0, limit: 0, remaining: 0 };
     }
 
-    const { tier, status, aiInsightsUsed, aiInsightsLimit } = subscription;
+    const { tier, aiInsightsUsed, aiInsightsLimit } = subscription;
     
-    // Check if subscription is active
-    if (status !== 'active' && status !== 'trialing') {
-      return { 
-        allowed: false, 
-        used: aiInsightsUsed, 
-        limit: aiInsightsLimit,
-        message: 'Sua assinatura não está ativa. Renove para continuar usando insights de IA.'
-      };
-    }
-
-    // Free tier has no AI insights
-    if (tier === 'free') {
-      return { 
-        allowed: false, 
-        used: 0, 
-        limit: 0,
-        message: 'Insights de IA estão disponíveis a partir do plano Pro. Faça upgrade para desbloquear!'
-      };
-    }
-
     // Premium and Enterprise have unlimited
     if (tier === 'premium' || tier === 'enterprise') {
       return { 
         allowed: true, 
         used: aiInsightsUsed, 
-        limit: Infinity
+        limit: Infinity,
+        remaining: Infinity,
       };
     }
 
-    // Pro tier - check quota
+    // Pro tier has monthly limit
     if (tier === 'pro') {
-      const hasQuota = aiInsightsUsed < aiInsightsLimit;
+      const remaining = aiInsightsLimit - aiInsightsUsed;
       return {
-        allowed: hasQuota,
+        allowed: aiInsightsUsed < aiInsightsLimit,
         used: aiInsightsUsed,
         limit: aiInsightsLimit,
-        message: hasQuota 
-          ? undefined 
-          : `Você atingiu o limite de ${aiInsightsLimit} insights de IA neste mês. Faça upgrade para o plano Premium para insights ilimitados!`
+        remaining: Math.max(0, remaining),
       };
     }
 
-    return { 
-      allowed: false, 
-      used: 0, 
-      limit: 0 
-    };
+    // Free tier cannot use AI insights
+    return { allowed: false, used: 0, limit: 0, remaining: 0 };
   }
 
   /**
@@ -291,35 +293,27 @@ class SubscriptionService {
   }
 
   /**
-   * Start a 14-day Pro trial
+   * Start a 14-day Pro trial for the user
    */
-  async startTrial(): Promise<{ success: boolean; message: string; trialEndsAt?: string }> {
+  async startTrial(): Promise<void> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return { success: false, message: 'Você precisa estar logado para iniciar o teste gratuito.' };
-      }
+      if (!user) throw new Error('User not authenticated');
 
-      // Check if user already had a trial
-      const { data: currentUser } = await supabase
+      // Check if user has already had a trial
+      const { data: existingUser } = await supabase
         .from('users')
-        .select('subscription_tier, subscription_status, trial_ends_at')
+        .select('subscription_tier, trial_ends_at')
         .eq('id', user.id)
         .single();
 
-      if (currentUser?.subscription_tier === 'pro' || currentUser?.subscription_tier === 'premium' || currentUser?.subscription_tier === 'enterprise') {
-        return { success: false, message: 'Você já tem uma assinatura ativa!' };
+      if (existingUser?.trial_ends_at) {
+        throw new Error('Trial already used');
       }
 
-      if (currentUser?.trial_ends_at) {
-        return { success: false, message: 'Você já usou seu teste gratuito.' };
-      }
-
-      // Calculate trial end date (14 days from now)
       const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+      trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14 days
 
-      // Update user to Pro trial
       const { error } = await supabase
         .from('users')
         .update({
@@ -331,156 +325,193 @@ class SubscriptionService {
         .eq('id', user.id);
 
       if (error) throw error;
-
-      return { 
-        success: true, 
-        message: 'Teste gratuito de 14 dias ativado com sucesso!',
-        trialEndsAt: trialEndsAt.toISOString()
-      };
     } catch (error: any) {
       console.error('Error starting trial:', error);
-      return { success: false, message: 'Erro ao iniciar teste gratuito: ' + error.message };
+      throw error;
     }
   }
 
   /**
-   * Check team count limit
+   * Check if user is on a trial
    */
-  async canCreateTeam(): Promise<{ allowed: boolean; current: number; limit: number; message?: string }> {
-    try {
-      const subscription = await this.getUserSubscription();
-      if (!subscription) {
-        return { allowed: false, current: 0, limit: 0, message: 'Você precisa estar logado.' };
-      }
-
-      const { tier, status } = subscription;
-      
-      if (status !== 'active' && status !== 'trialing') {
-        return { allowed: false, current: 0, limit: 0, message: 'Sua assinatura não está ativa.' };
-      }
-
-      const limits = this.getTierLimits(tier);
-      
-      // Count current active teams
-      const { data: { user } } = await supabase.auth.getUser();
-      const { count } = await supabase
-        .from('teams')
-        .select('*', { count: 'exact', head: true })
-        .eq('coach_id', user!.id)
-        .eq('is_active', true)
-        .is('archived_at', null);
-
-      const currentTeams = count || 0;
-      const canCreate = currentTeams < limits.teams;
-
-      return {
-        allowed: canCreate,
-        current: currentTeams,
-        limit: limits.teams,
-        message: canCreate 
-          ? undefined 
-          : `Você atingiu o limite de ${limits.teams} time(s) do plano ${TIER_NAMES[tier]}. Faça upgrade para adicionar mais times!`
-      };
-    } catch (error: any) {
-      console.error('Error checking team limit:', error);
-      return { allowed: false, current: 0, limit: 0, message: 'Erro ao verificar limite de times.' };
-    }
-  }
-
-  /**
-   * Check player count limit for a team
-   */
-  async canAddPlayer(teamId: string): Promise<{ allowed: boolean; current: number; limit: number; message?: string }> {
-    try {
-      const subscription = await this.getUserSubscription();
-      if (!subscription) {
-        return { allowed: false, current: 0, limit: 0, message: 'Você precisa estar logado.' };
-      }
-
-      const { tier, status } = subscription;
-      
-      if (status !== 'active' && status !== 'trialing') {
-        return { allowed: false, current: 0, limit: 0, message: 'Sua assinatura não está ativa.' };
-      }
-
-      const limits = this.getTierLimits(tier);
-      
-      // Count current active players in team
-      const { count } = await supabase
-        .from('players')
-        .select('*', { count: 'exact', head: true })
-        .eq('team_id', teamId)
-        .is('archived_at', null);
-
-      const currentPlayers = count || 0;
-      const canAdd = currentPlayers < limits.playersPerTeam;
-
-      return {
-        allowed: canAdd,
-        current: currentPlayers,
-        limit: limits.playersPerTeam,
-        message: canAdd 
-          ? undefined 
-          : `Você atingiu o limite de ${limits.playersPerTeam} atletas por time do plano ${TIER_NAMES[tier]}. Faça upgrade para adicionar mais atletas!`
-      };
-    } catch (error: any) {
-      console.error('Error checking player limit:', error);
-      return { allowed: false, current: 0, limit: 0, message: 'Erro ao verificar limite de atletas.' };
-    }
-  }
-
-  /**
-   * Get subscription tier display name
-   */
-  getTierName(tier: SubscriptionTier): string {
-    return TIER_NAMES[tier];
-  }
-
-  /**
-   * Get subscription tier price
-   */
-  getTierPrice(tier: SubscriptionTier, interval: 'monthly' | 'yearly' = 'monthly'): number {
-    return TIER_PRICES[tier][interval];
-  }
-
-  /**
-   * Check if subscription is active
-   */
-  isSubscriptionActive(status: SubscriptionStatus): boolean {
-    return status === 'active' || status === 'trialing';
+  async isOnTrial(): Promise<boolean> {
+    const subscription = await this.getUserSubscription();
+    return subscription?.status === 'trialing';
   }
 
   /**
    * Get days remaining in trial
    */
-  getTrialDaysRemaining(trialEndsAt: string | null): number {
-    if (!trialEndsAt) return 0;
+  async getTrialDaysRemaining(): Promise<number | null> {
+    const subscription = await this.getUserSubscription();
     
-    const endDate = new Date(trialEndsAt);
-    const today = new Date();
-    const diffTime = endDate.getTime() - today.getTime();
+    if (!subscription?.trialEndsAt || subscription.status !== 'trialing') {
+      return null;
+    }
+
+    const now = new Date();
+    const trialEnd = new Date(subscription.trialEndsAt);
+    const diffTime = trialEnd.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     return Math.max(0, diffDays);
   }
 
   /**
-   * Format tier for display with features
+   * Check if user has reached team limit
    */
-  formatTierDescription(tier: SubscriptionTier): string {
-    const features = this.getTierFeatures(tier);
-    const limits = this.getTierLimits(tier);
-    
-    const teamLimit = limits.teams === Infinity ? 'Ilimitados' : `${limits.teams}`;
-    const playerLimit = limits.playersPerTeam === Infinity ? 'Ilimitados' : `${limits.playersPerTeam} por time`;
-    
-    return `${teamLimit} times • ${playerLimit} atletas`;
+  async hasReachedTeamLimit(): Promise<{ reached: boolean; current: number; limit: number }> {
+    try {
+      const subscription = await this.getUserSubscription();
+      if (!subscription) {
+        return { reached: true, current: 0, limit: 0 };
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return { reached: true, current: 0, limit: 0 };
+      }
+
+      // Count active teams
+      const { count, error } = await supabase
+        .from('teams')
+        .select('*', { count: 'exact', head: true })
+        .eq('coach_id', user.id)
+        .eq('is_active', true)
+        .is('archived_at', null);
+
+      if (error) throw error;
+
+      const current = count || 0;
+      const limit = TIER_LIMITS[subscription.tier].teams;
+      const reached = limit !== Infinity && current >= limit;
+
+      return { reached, current, limit };
+    } catch (error: any) {
+      console.error('Error checking team limit:', error);
+      return { reached: true, current: 0, limit: 0 };
+    }
+  }
+
+  /**
+   * Check if team has reached player limit
+   */
+  async hasReachedPlayerLimit(teamId: string): Promise<{ reached: boolean; current: number; limit: number }> {
+    try {
+      const subscription = await this.getUserSubscription();
+      if (!subscription) {
+        return { reached: true, current: 0, limit: 0 };
+      }
+
+      // Count active players in team
+      const { count, error } = await supabase
+        .from('players')
+        .select('*', { count: 'exact', head: true })
+        .eq('team_id', teamId)
+        .is('archived_at', null);
+
+      if (error) throw error;
+
+      const current = count || 0;
+      const limit = TIER_LIMITS[subscription.tier].playersPerTeam;
+      const reached = limit !== Infinity && current >= limit;
+
+      return { reached, current, limit };
+    } catch (error: any) {
+      console.error('Error checking player limit:', error);
+      return { reached: true, current: 0, limit: 0 };
+    }
+  }
+
+  /**
+   * Get subscription history for current user
+   */
+  async getSubscriptionHistory(): Promise<any[]> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('subscription_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('started_at', { ascending: false });
+
+      if (error) throw error;
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error fetching subscription history:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Update user's subscription tier (admin function or payment webhook)
+   */
+  async updateSubscriptionTier(
+    userId: string, 
+    tier: SubscriptionTier, 
+    status: SubscriptionStatus = 'active'
+  ): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          subscription_tier: tier,
+          subscription_status: status,
+          subscription_start_date: status === 'active' ? new Date().toISOString() : undefined,
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error updating subscription tier:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel subscription (downgrade to free at end of period)
+   */
+  async cancelSubscription(): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { error } = await supabase
+        .from('users')
+        .update({
+          subscription_status: 'canceled',
+          subscription_end_date: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error canceling subscription:', error);
+      throw error;
+    }
   }
 }
 
 // Export singleton instance
 export const subscriptionService = new SubscriptionService();
 
-// Export service class for testing
-export { SubscriptionService };
-
+// Export individual functions for convenience
+export const {
+  getUserSubscription,
+  hasFeature,
+  getTierLimits,
+  getTierFeatures,
+  canUseAIInsights,
+  incrementAIInsightsUsage,
+  startTrial,
+  isOnTrial,
+  getTrialDaysRemaining,
+  hasReachedTeamLimit,
+  hasReachedPlayerLimit,
+  getSubscriptionHistory,
+  updateSubscriptionTier,
+  cancelSubscription,
+} = subscriptionService;
