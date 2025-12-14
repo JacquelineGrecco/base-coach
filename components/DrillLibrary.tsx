@@ -1,11 +1,40 @@
 import React, { useState } from 'react';
-import { MOCK_DRILLS } from '../constants';
-import { Drill } from '../types';
 import { generateDrillSuggestions } from '../services/geminiService';
 import { Search, Sparkles, Loader2, Filter, Play } from 'lucide-react';
 
+// Drill type definition
+interface Drill {
+  id: string;
+  title: string;
+  description: string;
+  durationMin: number;
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
+  tags: string[];
+  isAiGenerated?: boolean;
+}
+
+// Sample drills for the library
+const SAMPLE_DRILLS: Drill[] = [
+  {
+    id: "d1",
+    title: "3v2 Counter Attack",
+    description: "High intensity counter-attack drill focusing on quick decision making and exploiting numerical superiority.",
+    durationMin: 15,
+    difficulty: "Intermediate",
+    tags: ["Transition", "Shooting", "Passing"]
+  },
+  {
+    id: "d2",
+    title: "Rondo 4v1 Pressure",
+    description: "Keep away game in a small square. 4 attackers vs 1 defender. Focus on one-touch passing and movement.",
+    durationMin: 10,
+    difficulty: "Beginner",
+    tags: ["Passing", "Vision", "Warmup"]
+  }
+];
+
 const DrillLibrary: React.FC = () => {
-  const [drills, setDrills] = useState<Drill[]>(MOCK_DRILLS);
+  const [drills, setDrills] = useState<Drill[]>(SAMPLE_DRILLS);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiDifficulty, setAiDifficulty] = useState("Intermediate");
   const [isGenerating, setIsGenerating] = useState(false);
