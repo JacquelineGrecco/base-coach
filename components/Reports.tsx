@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users, Download, FileText, Brain, Sparkles, Target, Lightbulb, Share2, Link, Check } from 'lucide-react';
+import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users, Download, FileText, Brain, Sparkles, Target, Lightbulb, Share2, Link, Check, Lock } from 'lucide-react';
 import { VALENCES } from '../constants';
 import { supabase } from '../lib/supabase';
 import { sessionService, SessionEvaluation } from '../services/sessionService';
@@ -688,8 +688,15 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
   };
 
   // Export player report to PDF
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!selectedPlayer) return;
+
+    // Check if user has PDF export access
+    if (!subscription || !TIER_FEATURES[subscription.tier].pdfExport) {
+      alert('Exportar PDF é um recurso exclusivo do plano Pro. Faça upgrade para acessar!');
+      window.location.href = '/pricing';
+      return;
+    }
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
@@ -1301,11 +1308,23 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
               <div className="flex gap-2">
                 <button
                   onClick={handleExportPDF}
-                  className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-                  title="Exportar como PDF"
+                  disabled={!subscription || !TIER_FEATURES[subscription.tier].pdfExport}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                    subscription && TIER_FEATURES[subscription.tier].pdfExport
+                      ? 'bg-white/20 hover:bg-white/30'
+                      : 'bg-white/10 opacity-50 cursor-not-allowed'
+                  }`}
+                  title={subscription && TIER_FEATURES[subscription.tier].pdfExport ? "Exportar como PDF" : "PDF Export - Pro Feature"}
                 >
-                  <Download className="w-4 h-4" />
+                  {subscription && TIER_FEATURES[subscription.tier].pdfExport ? (
+                    <Download className="w-4 h-4" />
+                  ) : (
+                    <Lock className="w-4 h-4" />
+                  )}
                   <span className="text-sm font-medium">PDF</span>
+                  {(!subscription || !TIER_FEATURES[subscription.tier].pdfExport) && (
+                    <span className="text-xs bg-blue-500 px-1.5 py-0.5 rounded">Pro</span>
+                  )}
                 </button>
                 <button
                   onClick={handleShareReport}

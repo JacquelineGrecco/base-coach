@@ -394,7 +394,16 @@ const Profile: React.FC = () => {
       setSuccess('Dados exportados em JSON com sucesso!');
       setExporting(false);
     } else {
-      // CSV export
+      // CSV export - Check Pro+ access
+      if (!subscription || !TIER_FEATURES[subscription.tier].csvExport) {
+        setError('Exportar CSV é um recurso exclusivo do plano Pro. Faça upgrade para acessar!');
+        setExporting(false);
+        setTimeout(() => {
+          window.location.href = '/pricing';
+        }, 2000);
+        return;
+      }
+
       const { error } = await userService.exportUserDataAsCSV(user.id);
 
       if (error) {
@@ -1091,13 +1100,13 @@ const Profile: React.FC = () => {
               </p>
 
               <div className="space-y-3">
-                {/* CSV Option */}
+                {/* CSV Option - Pro+ Feature */}
                 <label
-                  className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  className={`flex items-start gap-3 p-4 border-2 rounded-lg transition-all ${
                     exportFormat === 'csv'
                       ? 'border-emerald-600 bg-emerald-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  } ${(!subscription || !TIER_FEATURES[subscription.tier].csvExport) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   <input
                     type="radio"
@@ -1106,16 +1115,29 @@ const Profile: React.FC = () => {
                     checked={exportFormat === 'csv'}
                     onChange={(e) => setExportFormat(e.target.value as 'json' | 'csv')}
                     className="mt-1"
+                    disabled={!subscription || !TIER_FEATURES[subscription.tier].csvExport}
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <FileText className="w-5 h-5 text-emerald-600" />
+                      {subscription && TIER_FEATURES[subscription.tier].csvExport ? (
+                        <FileText className="w-5 h-5 text-emerald-600" />
+                      ) : (
+                        <Lock className="w-5 h-5 text-gray-400" />
+                      )}
                       <span className="font-semibold text-gray-900">CSV (Recomendado)</span>
+                      {(!subscription || !TIER_FEATURES[subscription.tier].csvExport) && (
+                        <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded font-medium">Pro</span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600">
                       Múltiplos arquivos separados: perfil, times, atletas, sessões e avaliações.
                       Fácil de abrir no Excel ou Google Sheets.
                     </p>
+                    {(!subscription || !TIER_FEATURES[subscription.tier].csvExport) && (
+                      <p className="text-xs text-orange-600 mt-2 font-medium">
+                        Upgrade para Pro para exportar em CSV
+                      </p>
+                    )}
                   </div>
                 </label>
 
