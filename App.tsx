@@ -19,6 +19,7 @@ function AppContent() {
   const [currentView, setCurrentView] = useState<ViewState>("DASHBOARD");
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const [preselectedTeamId, setPreselectedTeamId] = useState<string | null>(null);
+  const [preselectedPlayerId, setPreselectedPlayerId] = useState<string | null>(null);
   const [fromSessionDetails, setFromSessionDetails] = useState(false);
 
   // Check if we're in password recovery mode
@@ -107,10 +108,13 @@ function AppContent() {
         return <Dashboard 
           onStartSession={handleStartSessionSetup} 
           onNavigateToTeams={() => setCurrentView("TEAMS")}
-          onNavigateToReports={(teamId?: string) => {
+          onNavigateToReports={(teamId?: string, playerId?: string) => {
             if (teamId) {
               setPreselectedTeamId(teamId);
               setFromSessionDetails(true);
+            }
+            if (playerId) {
+              setPreselectedPlayerId(playerId);
             }
             setCurrentView("REPORTS");
           }}
@@ -144,9 +148,11 @@ function AppContent() {
         return <Reports 
           evaluations={sessionEvaluations}
           preselectedTeamId={preselectedTeamId}
+          preselectedPlayerId={preselectedPlayerId}
           fromSessionDetails={fromSessionDetails}
           onTeamChange={() => {
             setPreselectedTeamId(null);
+            setPreselectedPlayerId(null);
             setFromSessionDetails(false);
           }}
         />;
@@ -155,7 +161,20 @@ function AppContent() {
       case "TEAMS":
         return <TeamsContainer />;
       default:
-        return <Dashboard teams={MOCK_TEAMS} onStartSession={handleStartSessionSetup} />;
+        return <Dashboard 
+          onStartSession={handleStartSessionSetup}
+          onNavigateToTeams={() => setCurrentView("TEAMS")}
+          onNavigateToReports={(teamId?: string, playerId?: string) => {
+            if (teamId) {
+              setPreselectedTeamId(teamId);
+              setFromSessionDetails(true);
+            }
+            if (playerId) {
+              setPreselectedPlayerId(playerId);
+            }
+            setCurrentView("REPORTS");
+          }}
+        />;
     }
   };
 

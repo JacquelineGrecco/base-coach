@@ -40,11 +40,12 @@ interface EvolutionData {
 
 interface ReportsProps {
   preselectedTeamId?: string | null;
+  preselectedPlayerId?: string | null;
   fromSessionDetails?: boolean;
   onTeamChange?: () => void;
 }
 
-const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, fromSessionDetails, onTeamChange }) => {
+const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerId, fromSessionDetails, onTeamChange }) => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [players, setPlayers] = useState<Player[]>([]);
@@ -74,13 +75,24 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, fromSessionDetails
       const teamExists = teams.find(t => t.id === preselectedTeamId);
       if (teamExists) {
         setSelectedTeamId(preselectedTeamId);
-        // If coming from session details, show team view
+        // If coming from session details, show team view initially
         if (fromSessionDetails) {
           setViewMode('team');
         }
       }
     }
   }, [preselectedTeamId, teams, fromSessionDetails]);
+
+  // Set preselected player if provided (from session details)
+  useEffect(() => {
+    if (preselectedPlayerId && players.length > 0 && fromSessionDetails) {
+      const playerExists = players.find(p => p.id === preselectedPlayerId);
+      if (playerExists) {
+        setSelectedPlayerId(preselectedPlayerId);
+        setViewMode('player'); // Switch to player view
+      }
+    }
+  }, [preselectedPlayerId, players, fromSessionDetails]);
 
   // Load players and team stats when team changes
   useEffect(() => {
