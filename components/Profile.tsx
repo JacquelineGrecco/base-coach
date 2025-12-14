@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Lock, CreditCard, Trash2, AlertCircle, CheckCircle, Mail, Phone, Save, Camera, Download, FileText, ZoomIn, ZoomOut } from 'lucide-react';
+import { User, Lock, CreditCard, Trash2, AlertCircle, CheckCircle, Mail, Phone, Save, Camera, Download, FileText, ZoomIn, ZoomOut, Sparkles, TrendingUp, Crown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { userService, UserProfile } from '../services/userService';
+import { subscriptionService, SubscriptionInfo, TIER_INFO, TIER_FEATURES, TIER_LIMITS } from '../services/subscriptionService';
 
 type TabType = 'personal' | 'plan';
 
@@ -9,6 +10,8 @@ const Profile: React.FC = () => {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('personal');
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -46,6 +49,7 @@ const Profile: React.FC = () => {
 
   useEffect(() => {
     loadProfile();
+    loadSubscription();
   }, [user]);
 
   async function loadProfile() {
@@ -76,6 +80,16 @@ const Profile: React.FC = () => {
     }
     
     setLoading(false);
+  }
+
+  async function loadSubscription() {
+    const sub = await subscriptionService.getUserSubscription();
+    setSubscription(sub);
+
+    if (sub?.status === 'trialing') {
+      const daysLeft = await subscriptionService.getTrialDaysRemaining();
+      setTrialDaysLeft(daysLeft);
+    }
   }
 
   async function handleUpdatePersonalInfo(e: React.FormEvent) {
@@ -758,86 +772,287 @@ const Profile: React.FC = () => {
         {/* Plan Tab */}
         {activeTab === 'plan' && (
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Gerenciar Plano</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Gerenciar Assinatura</h2>
             
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Plano Atual:</strong> {profile?.plan_type?.toUpperCase() || 'FREE'}
-              </p>
-            </div>
+            {/* Current Subscription Info */}
+            {subscription && (
+              <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      {subscription.tier === 'premium' && <Crown className="w-6 h-6 text-yellow-500" />}
+                      {subscription.tier === 'pro' && <Sparkles className="w-6 h-6 text-blue-500" />}
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        Plano {TIER_INFO[subscription.tier].displayName}
+                      </h3>
+                    </div>
+                    <p className="text-sm text-gray-600">{TIER_INFO[subscription.tier].description}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold text-gray-900">{TIER_INFO[subscription.tier].price}</p>
+                    {TIER_INFO[subscription.tier].priceMonthly > 0 && (
+                      <p className="text-sm text-gray-600">/mês</p>
+                    )}
+                  </div>
+                </div>
 
+                {/* Trial Badge */}
+                {subscription.status === 'trialing' && trialDaysLeft !== null && (
+                  <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                    <p className="text-sm font-medium text-yellow-900">
+                      🎉 Teste grátis: {trialDaysLeft} {trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Status Badge */}
+                <div className="flex items-center gap-2 mb-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    subscription.status === 'active' ? 'bg-green-100 text-green-800' :
+                    subscription.status === 'trialing' ? 'bg-blue-100 text-blue-800' :
+                    subscription.status === 'past_due' ? 'bg-red-100 text-red-800' :
+                    subscription.status === 'canceled' ? 'bg-gray-100 text-gray-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {subscription.status === 'active' ? '✓ Ativo' :
+                     subscription.status === 'trialing' ? '🎁 Em teste' :
+                     subscription.status === 'past_due' ? '⚠️ Pagamento pendente' :
+                     subscription.status === 'canceled' ? '⏸️ Cancelado' :
+                     subscription.status}
+                  </span>
+                </div>
+
+                {/* AI Insights Usage (Pro tier) */}
+                {subscription.tier === 'pro' && (
+                  <div className="mb-4 p-3 bg-white bg-opacity-50 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Insights de IA este mês</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {subscription.aiInsightsUsed} / {subscription.aiInsightsLimit}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        style={{ width: `${(subscription.aiInsightsUsed / subscription.aiInsightsLimit) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Resource Limits */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-white bg-opacity-50 rounded-lg">
+                    <p className="text-xs text-gray-600 mb-1">Times</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {TIER_LIMITS[subscription.tier].teams === Infinity ? 'Ilimitados' : TIER_LIMITS[subscription.tier].teams}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white bg-opacity-50 rounded-lg">
+                    <p className="text-xs text-gray-600 mb-1">Atletas por time</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {TIER_LIMITS[subscription.tier].playersPerTeam === Infinity ? 'Ilimitados' : TIER_LIMITS[subscription.tier].playersPerTeam}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Available Plans */}
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Planos Disponíveis</h3>
             <div className="grid md:grid-cols-3 gap-4">
               {/* Free Plan */}
-              <div className={`border-2 rounded-lg p-6 ${profile?.plan_type === 'free' || !profile?.plan_type ? 'border-emerald-600 bg-emerald-50' : 'border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-2">Free</h3>
+              <div className={`border-2 rounded-xl p-6 transition-all ${
+                subscription?.tier === 'free' 
+                  ? 'border-gray-400 bg-gray-50 shadow-lg' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}>
+                <h3 className="text-lg font-semibold mb-2">Gratuito</h3>
                 <p className="text-3xl font-bold mb-4">R$ 0<span className="text-sm text-gray-600">/mês</span></p>
                 <ul className="space-y-2 mb-6 text-sm">
-                  <li>✓ 1 time</li>
-                  <li>✓ Até 15 jogadores</li>
-                  <li>✓ Avaliações básicas</li>
-                  <li>✗ Relatórios profissionais</li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> 1 time
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> 15 atletas por time
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Avaliações básicas
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-red-600">✗</span> Sem gráficos avançados
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-red-600">✗</span> Sem insights de IA
+                  </li>
                 </ul>
-                {(profile?.plan_type === 'free' || !profile?.plan_type) ? (
-                  <div className="text-center text-sm font-medium text-emerald-600">Plano Atual</div>
+                {subscription?.tier === 'free' ? (
+                  <div className="text-center text-sm font-medium text-gray-600 py-2">
+                    Plano Atual
+                  </div>
                 ) : (
                   <button
-                    onClick={() => handleChangePlan('free')}
-                    disabled={saving}
+                    onClick={() => window.location.href = '/pricing'}
                     className="w-full bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition-colors"
                   >
-                    Mudar para Free
+                    Ver Detalhes
                   </button>
                 )}
               </div>
 
-              {/* Basic Plan */}
-              <div className={`border-2 rounded-lg p-6 ${profile?.plan_type === 'basic' ? 'border-emerald-600 bg-emerald-50' : 'border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-2">Basic</h3>
-                <p className="text-3xl font-bold mb-4">R$ 29<span className="text-sm text-gray-600">/mês</span></p>
+              {/* Pro Plan */}
+              <div className={`border-2 rounded-xl p-6 transition-all ${
+                subscription?.tier === 'pro'
+                  ? 'border-blue-600 bg-blue-50 shadow-lg' 
+                  : 'border-blue-200 hover:border-blue-300'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-semibold">Pro</h3>
+                  {!subscription || subscription.tier === 'free' ? (
+                    <span className="bg-green-400 text-green-900 text-xs font-bold px-2 py-1 rounded">POPULAR</span>
+                  ) : null}
+                </div>
+                <p className="text-3xl font-bold mb-1">R$ 49<span className="text-sm text-gray-600">/mês</span></p>
+                <p className="text-xs text-gray-600 mb-4">ou R$ 490/ano (economize 17%)</p>
                 <ul className="space-y-2 mb-6 text-sm">
-                  <li>✓ 3 times</li>
-                  <li>✓ Até 50 jogadores</li>
-                  <li>✓ Avaliações completas</li>
-                  <li>✓ Relatórios profissionais</li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> 5 times
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Atletas ilimitados
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Gráficos radar
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Gráficos de evolução
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> 5 insights IA/mês
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Exportar PDF
+                  </li>
                 </ul>
-                {profile?.plan_type === 'basic' ? (
-                  <div className="text-center text-sm font-medium text-emerald-600">Plano Atual</div>
+                {subscription?.tier === 'pro' ? (
+                  <div className="text-center text-sm font-medium text-blue-600 py-2">
+                    ✓ Plano Atual
+                  </div>
+                ) : subscription?.tier === 'free' ? (
+                  <button
+                    onClick={() => window.location.href = '/pricing'}
+                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Fazer Upgrade
+                  </button>
                 ) : (
                   <button
-                    onClick={() => handleChangePlan('basic')}
-                    disabled={saving}
-                    className="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+                    onClick={() => window.location.href = '/pricing'}
+                    className="w-full border border-blue-600 text-blue-600 py-2 rounded-lg hover:bg-blue-50 transition-colors"
                   >
-                    Assinar Basic
+                    Ver Detalhes
                   </button>
                 )}
               </div>
 
               {/* Premium Plan */}
-              <div className={`border-2 rounded-lg p-6 ${profile?.plan_type === 'premium' ? 'border-emerald-600 bg-emerald-50' : 'border-gray-200'}`}>
+              <div className={`border-2 rounded-xl p-6 transition-all ${
+                subscription?.tier === 'premium'
+                  ? 'border-purple-600 bg-purple-50 shadow-lg' 
+                  : 'border-purple-200 hover:border-purple-300'
+              }`}>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-semibold">Premium</h3>
-                  <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded">POPULAR</span>
+                  <Crown className="w-5 h-5 text-yellow-500" />
                 </div>
-                <p className="text-3xl font-bold mb-4">R$ 79<span className="text-sm text-gray-600">/mês</span></p>
+                <p className="text-3xl font-bold mb-1">R$ 149<span className="text-sm text-gray-600">/mês</span></p>
+                <p className="text-xs text-gray-600 mb-4">ou R$ 1.490/ano (economize 17%)</p>
                 <ul className="space-y-2 mb-6 text-sm">
-                  <li>✓ Times ilimitados</li>
-                  <li>✓ Jogadores ilimitados</li>
-                  <li>✓ IA avançada</li>
-                  <li>✓ Venda de relatórios (70%)</li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Times ilimitados
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Atletas ilimitados
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Insights IA ilimitados
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Valências personalizadas
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Portal para pais
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span> Múltiplos treinadores
+                  </li>
                 </ul>
-                {profile?.plan_type === 'premium' ? (
-                  <div className="text-center text-sm font-medium text-emerald-600">Plano Atual</div>
+                {subscription?.tier === 'premium' ? (
+                  <div className="text-center text-sm font-medium text-purple-600 py-2">
+                    ✓ Plano Atual
+                  </div>
                 ) : (
                   <button
-                    onClick={() => handleChangePlan('premium')}
-                    disabled={saving}
-                    className="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+                    onClick={() => window.location.href = '/pricing'}
+                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-colors font-medium"
                   >
-                    Assinar Premium
+                    Fazer Upgrade
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* Start Trial Button (only for free users who haven't trialed) */}
+            {subscription?.tier === 'free' && !subscription.trialEndsAt && (
+              <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
+                      <Sparkles className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      Experimente o Plano Pro Grátis! 🎉
+                    </h4>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Teste todos os recursos profissionais por 14 dias, sem compromisso e sem cartão de crédito.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await subscriptionService.startTrial();
+                          setSuccess('Teste iniciado com sucesso! Aproveite 14 dias grátis 🎉');
+                          loadSubscription();
+                        } catch (error: any) {
+                          setError(error.message || 'Erro ao iniciar teste');
+                        }
+                      }}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    >
+                      Iniciar Teste Grátis de 14 Dias
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Enterprise Contact */}
+            <div className="mt-6 p-6 bg-gray-50 border border-gray-200 rounded-xl">
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                Precisa de um plano Enterprise?
+              </h4>
+              <p className="text-sm text-gray-700 mb-4">
+                Para clubes, academias e organizações que precisam de recursos avançados, API, white-label e suporte dedicado.
+              </p>
+              <a
+                href={`https://wa.me/${import.meta.env.VITE_SUPPORT_WHATSAPP || '5511999999999'}?text=${encodeURIComponent('Olá! Gostaria de saber mais sobre o plano Enterprise do BaseCoach.')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              >
+                Falar com Vendas
+              </a>
             </div>
           </div>
         )}
