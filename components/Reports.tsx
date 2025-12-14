@@ -1606,153 +1606,168 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
 
       {/* Individual Player Mode - Evolution */}
       {viewMode === 'player' && playerViewMode === 'evolution' && selectedPlayer && evolutionData.length > 0 && (
-        <>
-          {/* Evolution Header */}
-          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Evolução de {selectedPlayer.name}</h2>
-                <p className="text-purple-100">Acompanhe o progresso ao longo do tempo</p>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold">{evolutionData.length}</div>
-                <div className="text-purple-100">Sessões</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Valence Selector and Date Range Filter */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Selecionar Critério para Visualizar Evolução
-              </label>
-              <select
-                value={selectedValenceForEvolution}
-                onChange={(e) => setSelectedValenceForEvolution(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                {playerStats.map(stat => (
-                  <option key={stat.valence_id} value={stat.valence_id}>
-                    {stat.valence_name} (Média: {stat.average.toFixed(1)})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Período
-              </label>
-              <select
-                value={dateRangeFilter}
-                onChange={(e) => setDateRangeFilter(e.target.value as any)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="all">Todas as Sessões</option>
-                <option value="last7">Últimos 7 dias</option>
-                <option value="last30">Últimos 30 dias</option>
-                <option value="last90">Últimos 90 dias</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Evolution Line Chart */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-purple-600" />
-              Evolução: {playerStats.find(s => s.valence_id === selectedValenceForEvolution)?.valence_name}
-            </h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={filteredEvolutionData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  label={{ value: 'Data da Sessão', position: 'insideBottom', offset: -5 }}
-                />
-                <YAxis 
-                  domain={[0, 5]}
-                  label={{ value: 'Pontuação', angle: -90, position: 'insideLeft' }}
-                />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0' }}
-                  formatter={(value: number) => [`${value.toFixed(1)} / 5.0`, 'Pontuação']}
-                  labelFormatter={(label) => `Sessão: ${label}`}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey={selectedValenceForEvolution} 
-                  stroke="#8b5cf6" 
-                  strokeWidth={3}
-                  dot={{ fill: '#8b5cf6', r: 6 }}
-                  activeDot={{ r: 8 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Evolution Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
+        subscription && TIER_FEATURES[subscription.tier].evolutionCharts ? (
+          <>
+            {/* Evolution Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Evolução de {selectedPlayer.name}</h2>
+                  <p className="text-purple-100">Acompanhe o progresso ao longo do tempo</p>
                 </div>
-                <h3 className="font-semibold text-slate-700">Melhor Pontuação</h3>
+                <div className="text-right">
+                  <div className="text-3xl font-bold">{evolutionData.length}</div>
+                  <div className="text-purple-100">Sessões</div>
+                </div>
               </div>
-              <div className="text-3xl font-bold text-slate-900">
-                {filteredEvolutionData.length > 0
-                  ? Math.max(...filteredEvolutionData
+            </div>
+
+            {/* Valence Selector and Date Range Filter */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Selecionar Critério para Visualizar Evolução
+                </label>
+                <select
+                  value={selectedValenceForEvolution}
+                  onChange={(e) => setSelectedValenceForEvolution(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  {playerStats.map(stat => (
+                    <option key={stat.valence_id} value={stat.valence_id}>
+                      {stat.valence_name} (Média: {stat.average.toFixed(1)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Período
+                </label>
+                <select
+                  value={dateRangeFilter}
+                  onChange={(e) => setDateRangeFilter(e.target.value as any)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="all">Todas as Sessões</option>
+                  <option value="last7">Últimos 7 dias</option>
+                  <option value="last30">Últimos 30 dias</option>
+                  <option value="last90">Últimos 90 dias</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Evolution Line Chart */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-purple-600" />
+                Evolução: {playerStats.find(s => s.valence_id === selectedValenceForEvolution)?.valence_name}
+              </h3>
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={filteredEvolutionData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="date" 
+                    label={{ value: 'Data da Sessão', position: 'insideBottom', offset: -5 }}
+                  />
+                  <YAxis 
+                    domain={[0, 5]}
+                    label={{ value: 'Pontuação', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0' }}
+                    formatter={(value: number) => [`${value.toFixed(1)} / 5.0`, 'Pontuação']}
+                    labelFormatter={(label) => `Sessão: ${label}`}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey={selectedValenceForEvolution} 
+                    stroke="#8b5cf6" 
+                    strokeWidth={3}
+                    dot={{ fill: '#8b5cf6', r: 6 }}
+                    activeDot={{ r: 8 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Evolution Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-700">Melhor Pontuação</h3>
+                </div>
+                <div className="text-3xl font-bold text-slate-900">
+                  {filteredEvolutionData.length > 0
+                    ? Math.max(...filteredEvolutionData
+                        .filter(d => d[selectedValenceForEvolution] !== undefined)
+                        .map(d => Number(d[selectedValenceForEvolution]) || 0)
+                      ).toFixed(1)
+                    : '0.0'}
+                </div>
+                <p className="text-sm text-slate-500 mt-1">Pontuação máxima alcançada</p>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <BarChart className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-700">Média Total</h3>
+                </div>
+                <div className="text-3xl font-bold text-slate-900">
+                  {filteredEvolutionData.length > 0
+                    ? (filteredEvolutionData
+                        .filter(d => d[selectedValenceForEvolution] !== undefined)
+                        .reduce((sum, d) => sum + (Number(d[selectedValenceForEvolution]) || 0), 0) / 
+                        filteredEvolutionData.filter(d => d[selectedValenceForEvolution] !== undefined).length
+                      ).toFixed(1)
+                    : '0.0'}
+                </div>
+                <p className="text-sm text-slate-500 mt-1">Média em todas as sessões</p>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Activity className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-700">Progresso</h3>
+                </div>
+                <div className="text-3xl font-bold text-slate-900">
+                  {(() => {
+                    const scores = filteredEvolutionData
                       .filter(d => d[selectedValenceForEvolution] !== undefined)
-                      .map(d => Number(d[selectedValenceForEvolution]) || 0)
-                    ).toFixed(1)
-                  : '0.0'}
-              </div>
-              <p className="text-sm text-slate-500 mt-1">Pontuação máxima alcançada</p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <BarChart className="w-5 h-5 text-blue-600" />
+                      .map(d => Number(d[selectedValenceForEvolution]) || 0);
+                    if (scores.length < 2) return '0.0';
+                    const first = scores[0];
+                    const last = scores[scores.length - 1];
+                    const diff = last - first;
+                    return diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
+                  })()}
                 </div>
-                <h3 className="font-semibold text-slate-700">Média Total</h3>
+                <p className="text-sm text-slate-500 mt-1">Primeira vs Última sessão</p>
               </div>
-              <div className="text-3xl font-bold text-slate-900">
-                {filteredEvolutionData.length > 0
-                  ? (filteredEvolutionData
-                      .filter(d => d[selectedValenceForEvolution] !== undefined)
-                      .reduce((sum, d) => sum + (Number(d[selectedValenceForEvolution]) || 0), 0) / 
-                      filteredEvolutionData.filter(d => d[selectedValenceForEvolution] !== undefined).length
-                    ).toFixed(1)
-                  : '0.0'}
-              </div>
-              <p className="text-sm text-slate-500 mt-1">Média em todas as sessões</p>
             </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Activity className="w-5 h-5 text-purple-600" />
-                </div>
-                <h3 className="font-semibold text-slate-700">Progresso</h3>
+          </>
+        ) : (
+          <UpgradePrompt
+            feature="Gráficos de Evolução"
+            description="Acompanhe o progresso dos atletas ao longo do tempo com gráficos de linha interativos, filtros por período e estatísticas de melhoria."
+            requiredTier="pro"
+            size="large"
+            showPreview={true}
+            previewElement={
+              <div className="h-64 flex items-center justify-center bg-gradient-to-br from-purple-100 to-indigo-100">
+                <div className="text-6xl text-purple-300">📈</div>
               </div>
-              <div className="text-3xl font-bold text-slate-900">
-                {(() => {
-                  const scores = filteredEvolutionData
-                    .filter(d => d[selectedValenceForEvolution] !== undefined)
-                    .map(d => Number(d[selectedValenceForEvolution]) || 0);
-                  if (scores.length < 2) return '0.0';
-                  const first = scores[0];
-                  const last = scores[scores.length - 1];
-                  const diff = last - first;
-                  return diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
-                })()}
-              </div>
-              <p className="text-sm text-slate-500 mt-1">Primeira vs Última sessão</p>
-            </div>
-          </div>
-        </>
+            }
+          />
+        )
       )}
 
       {/* Evolution Empty State */}
