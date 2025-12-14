@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu, Settings, Users } from 'lucide-react';
+import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu, Settings, Users, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
@@ -13,8 +13,19 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
   const { signOut, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
+  const SUPPORT_WHATSAPP = import.meta.env.VITE_SUPPORT_WHATSAPP || '5511999999999';
+
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleContactSupport = () => {
+    const message = encodeURIComponent(
+      `Olá! Preciso de ajuda com o BaseCoach.\n\nEmail: ${user?.email || 'não informado'}`
+    );
+    const whatsappUrl = `https://wa.me/${SUPPORT_WHATSAPP}?text=${message}`;
+    window.open(whatsappUrl, '_blank');
+    setMobileMenuOpen(false);
   };
 
   const NavItem = ({ view, icon: Icon, label }: { view: ViewState; icon: any; label: string }) => (
@@ -57,7 +68,14 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
             <NavItem view="PROFILE" icon={Settings} label="Configurações" />
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-slate-800 space-y-2">
+            <button 
+              onClick={handleContactSupport}
+              className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            >
+                <MessageCircle className="w-5 h-5" />
+                <span>Suporte</span>
+            </button>
             <button 
               onClick={handleSignOut}
               className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
@@ -95,13 +113,20 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
                 <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
                 <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
                 <NavItem view="PROFILE" icon={Settings} label="Configurações" />
-                <div className="pt-4 mt-auto">
+                <div className="pt-4 mt-auto space-y-2">
+                  <button 
+                    onClick={handleContactSupport}
+                    className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                  >
+                      <MessageCircle className="w-5 h-5" />
+                      <span>Suporte</span>
+                  </button>
                   <button 
                     onClick={handleSignOut}
                     className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
                   >
-                    <LogOut className="w-5 h-5" />
-                    <span>Sair</span>
+                      <LogOut className="w-5 h-5" />
+                      <span>Sair</span>
                   </button>
                 </div>
             </div>
