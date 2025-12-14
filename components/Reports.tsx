@@ -163,8 +163,11 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
       const players = (data as Player[]) || [];
       setPlayers(players);
       
-      // Auto-select first player
-      if (players.length > 0) {
+      // Auto-select first player ONLY if:
+      // 1. Not coming from session details
+      // 2. No player is currently selected
+      // 3. No preselected player ID
+      if (players.length > 0 && !fromSessionDetails && !selectedPlayerId && !preselectedPlayerId) {
         setSelectedPlayerId(players[0].id);
       } else {
         setSelectedPlayerId('');
