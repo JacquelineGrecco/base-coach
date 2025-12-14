@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Lock, Sparkles, TrendingUp, Crown, ArrowRight } from 'lucide-react';
 import { SubscriptionTier, TIER_INFO } from '../services/subscriptionService';
+import { TrialModal } from './TrialModal';
+import { subscriptionService } from '../services/subscriptionService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UpgradePromptProps {
   feature: string;
@@ -10,6 +13,7 @@ interface UpgradePromptProps {
   size?: 'small' | 'medium' | 'large';
   showPreview?: boolean;
   previewElement?: React.ReactNode;
+  onUpgradeClick?: () => void;
 }
 
 const TIER_ICONS = {
@@ -53,7 +57,12 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
   size = 'medium',
   showPreview = false,
   previewElement,
+  onUpgradeClick,
 }) => {
+  const { user } = useAuth();
+  const [showTrialModal, setShowTrialModal] = useState(false);
+  const [startingTrial, setStartingTrial] = useState(false);
+  
   const tierInfo = TIER_INFO[requiredTier];
   const colors = TIER_COLORS[requiredTier];
   const Icon = TIER_ICONS[requiredTier];
@@ -76,88 +85,128 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
     large: 'w-8 h-8',
   };
 
-  return (
-    <div className={`bg-gradient-to-br ${colors.bg} rounded-xl border-2 ${colors.border} ${sizeClasses[size]} text-center relative overflow-hidden`}>
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }} />
-      </div>
+  async function handleStartTrial() {
+    if (!user?.id) return;
+    
+    setStartingTrial(true);
+    try {
+      const { error } = await subscriptionService.startTrial(user.id);
+      if (error) {
+        alert('Erro ao iniciar teste: ' + error.message);
+      } else {
+        alert('🎉 Teste Pro iniciado com sucesso! Você tem 14 dias para explorar todos os recursos.');
+        window.location.reload(); // Reload to update UI
+      }
+    } catch (err: any) {
+      alert('Erro inesperado: ' + err.message);
+    } finally {
+      setStartingTrial(false);
+      setShowTrialModal(false);
+    }
+  }
 
-      {/* Content */}
-      <div className="relative">
-        {/* Preview with Blur (if provided) */}
-        {showPreview && previewElement && (
-          <div className="relative mb-6 -mx-6 -mt-6">
-            <div className="filter blur-xl opacity-50 pointer-events-none">
-              {previewElement}
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="bg-white bg-opacity-90 rounded-lg p-3 shadow-lg">
-                <Lock className={`${iconInnerSizes[size]} text-gray-600`} />
+  function handleUpgradeClick() {
+    if (onUpgradeClick) {
+      onUpgradeClick();
+    } else if (requiredTier === 'pro') {
+      setShowTrialModal(true);
+    } else {
+      window.location.href = '/pricing';
+    }
+  }
+
+  return (
+    <>
+      <div className={`bg-gradient-to-br ${colors.bg} rounded-xl border-2 ${colors.border} ${sizeClasses[size]} text-center relative overflow-hidden`}>
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }} />
+        </div>
+
+        {/* Content */}
+        <div className="relative">
+          {/* Preview with Blur (if provided) */}
+          {showPreview && previewElement && (
+            <div className="relative mb-6 -mx-6 -mt-6">
+              <div className="filter blur-xl opacity-50 pointer-events-none">
+                {previewElement}
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-white bg-opacity-90 rounded-lg p-3 shadow-lg">
+                  <Lock className={`${iconInnerSizes[size]} text-gray-600`} />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Lock Icon */}
-        {!showPreview && (
-          <div className={`inline-flex items-center justify-center ${iconSizes[size]} rounded-full bg-white shadow-md mb-4`}>
-            <Lock className={`${iconInnerSizes[size]} text-gray-400`} />
-          </div>
-        )}
-        
-        {/* Feature Name */}
-        <h3 className={`text-xl font-bold ${colors.text} mb-2`}>
-          {feature}
-        </h3>
-        
-        {/* Description */}
-        <p className="text-gray-700 mb-4 max-w-md mx-auto">
-          {description}
-        </p>
-
-        {/* Tier Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 mb-4 shadow-sm">
-          <Icon className={`w-5 h-5 ${colors.icon}`} />
-          <span className="text-sm font-medium text-gray-700">
-            Disponível no plano <strong className={colors.text}>{tierInfo.displayName}</strong>
-          </span>
-        </div>
-
-        {/* Pricing Info */}
-        {tierInfo.priceMonthly > 0 && (
-          <p className="text-sm text-gray-600 mb-4">
-            A partir de <span className="font-bold text-gray-900">{tierInfo.price}/mês</span>
+          {/* Lock Icon */}
+          {!showPreview && (
+            <div className={`inline-flex items-center justify-center ${iconSizes[size]} rounded-full bg-white shadow-md mb-4`}>
+              <Lock className={`${iconInnerSizes[size]} text-gray-400`} />
+            </div>
+          )}
+          
+          {/* Feature Name */}
+          <h3 className={`text-xl font-bold ${colors.text} mb-2`}>
+            {feature}
+          </h3>
+          
+          {/* Description */}
+          <p className="text-gray-700 mb-4 max-w-md mx-auto">
+            {description}
           </p>
-        )}
 
-        {/* CTAs */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-          <button
-            onClick={() => window.location.href = '/pricing'}
-            className={`px-6 py-3 ${colors.button} text-white rounded-lg transition-colors font-medium flex items-center gap-2 shadow-md hover:shadow-lg`}
-          >
-            {ctaText || `Fazer Upgrade para ${tierInfo.displayName}`}
-            <ArrowRight className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => window.location.href = '/pricing'}
-            className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-white hover:border-gray-400 transition-colors font-medium"
-          >
-            Ver Todos os Planos
-          </button>
+          {/* Tier Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 mb-4 shadow-sm">
+            <Icon className={`w-5 h-5 ${colors.icon}`} />
+            <span className="text-sm font-medium text-gray-700">
+              Disponível no plano <strong className={colors.text}>{tierInfo.displayName}</strong>
+            </span>
+          </div>
+
+          {/* Pricing Info */}
+          {tierInfo.priceMonthly > 0 && (
+            <p className="text-sm text-gray-600 mb-4">
+              A partir de <span className="font-bold text-gray-900">{tierInfo.price}/mês</span>
+            </p>
+          )}
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+            <button
+              onClick={handleUpgradeClick}
+              className={`px-6 py-3 ${colors.button} text-white rounded-lg transition-colors font-medium flex items-center gap-2 shadow-md hover:shadow-lg`}
+            >
+              {requiredTier === 'pro' ? 'Iniciar Teste Grátis' : ctaText || `Fazer Upgrade para ${tierInfo.displayName}`}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => window.location.href = '/pricing'}
+              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-white hover:border-gray-400 transition-colors font-medium"
+            >
+              Ver Todos os Planos
+            </button>
+          </div>
+
+          {/* Additional Info */}
+          {requiredTier === 'pro' && (
+            <p className="text-xs text-gray-600 mt-4">
+              🎁 Teste grátis por 14 dias • Sem cartão de crédito
+            </p>
+          )}
         </div>
-
-        {/* Additional Info */}
-        {requiredTier === 'pro' && (
-          <p className="text-xs text-gray-600 mt-4">
-            🎁 Teste grátis por 14 dias • Sem cartão de crédito
-          </p>
-        )}
       </div>
-    </div>
+
+      {/* Trial Modal */}
+      <TrialModal
+        isOpen={showTrialModal}
+        onClose={() => setShowTrialModal(false)}
+        onStartTrial={handleStartTrial}
+        loading={startingTrial}
+      />
+    </>
   );
 };
 
