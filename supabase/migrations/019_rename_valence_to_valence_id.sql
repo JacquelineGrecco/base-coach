@@ -19,3 +19,4 @@ CREATE INDEX IF NOT EXISTS idx_evaluations_player_valence_id ON evaluations(play
 
 COMMENT ON COLUMN evaluations.valence_id IS 'The valence/criteria being evaluated (e.g., passing, dribbling, etc.)';
 
+

@@ -340,3 +340,4 @@ userService.updateProfile(
 **Current User Type:** Coach only  
 **Future Support:** Player accounts (v2.0+)
 
+

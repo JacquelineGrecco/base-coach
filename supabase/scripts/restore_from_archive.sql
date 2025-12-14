@@ -188,3 +188,4 @@ WHERE team_id IN (SELECT id FROM teams WHERE user_id IN (SELECT id FROM users WH
 RAISE NOTICE '✅ Cleaned up archive tables after successful restore';
 */
 
+

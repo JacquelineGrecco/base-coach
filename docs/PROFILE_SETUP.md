@@ -206,3 +206,4 @@ Dashboard → Sidebar → Configurações (Settings)
 **Status:** ✅ Ready to Use  
 **Migration Required:** Yes - Run `005_add_plan_type_to_users.sql`
 
+

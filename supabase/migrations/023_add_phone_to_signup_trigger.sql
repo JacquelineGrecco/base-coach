@@ -43,3 +43,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 COMMENT ON FUNCTION public.ensure_profile_exists() IS 'Ensures user profile exists on login. Creates profile if missing. Includes phone from metadata.';
 
+

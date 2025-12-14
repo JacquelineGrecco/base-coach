@@ -102,9 +102,10 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
         setViewMode('player'); // Switch to player view
       }
     } else if (players.length > 0 && !selectedPlayerId && !fromSessionDetails && !preselectedPlayerId) {
-      // Auto-select first player when coming from sidebar (normal flow)
-      console.log('Auto-selecting first player:', players[0]);
+      // Auto-select first player for dropdown, but stay in team view
+      console.log('Auto-selecting first player for dropdown (staying in team view):', players[0]);
       setSelectedPlayerId(players[0].id);
+      // viewMode stays as 'team' (default)
     }
   }, [preselectedPlayerId, players, fromSessionDetails, selectedPlayerId]);
 

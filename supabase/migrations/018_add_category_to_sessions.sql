@@ -13,3 +13,4 @@ CREATE INDEX IF NOT EXISTS idx_sessions_team_category ON sessions(team_id, categ
 
 COMMENT ON COLUMN sessions.category_id IS 'Optional category filter for the session. NULL means session includes all team players.';
 
+

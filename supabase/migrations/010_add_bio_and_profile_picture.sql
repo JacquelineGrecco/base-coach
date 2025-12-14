@@ -32,3 +32,4 @@ COMMENT ON COLUMN users.profile_picture_url IS 'URL to profile picture stored in
   - Users can delete their own avatars
 */
 
+
