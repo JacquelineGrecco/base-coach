@@ -89,6 +89,7 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
       preselectedPlayerId,
       playersCount: players.length,
       fromSessionDetails,
+      selectedPlayerId,
       players: players.map(p => ({ id: p.id, name: p.name }))
     });
     
@@ -100,8 +101,12 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
         setSelectedPlayerId(preselectedPlayerId);
         setViewMode('player'); // Switch to player view
       }
+    } else if (players.length > 0 && !selectedPlayerId && !fromSessionDetails && !preselectedPlayerId) {
+      // Auto-select first player when coming from sidebar (normal flow)
+      console.log('Auto-selecting first player:', players[0]);
+      setSelectedPlayerId(players[0].id);
     }
-  }, [preselectedPlayerId, players, fromSessionDetails]);
+  }, [preselectedPlayerId, players, fromSessionDetails, selectedPlayerId]);
 
   // Load players and team stats when team changes
   useEffect(() => {
@@ -163,17 +168,8 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
       const players = (data as Player[]) || [];
       setPlayers(players);
       
-      // Auto-select first player ONLY if:
-      // 1. Not coming from session details
-      // 2. No player is currently selected
-      // 3. No preselected player ID
-      if (players.length > 0 && !fromSessionDetails && !selectedPlayerId && !preselectedPlayerId) {
-        setSelectedPlayerId(players[0].id);
-      } else {
-        setSelectedPlayerId('');
-        setPlayerStats([]);
-        setSessions([]);
-      }
+      // Player selection is handled by useEffect
+      // Don't auto-select here to avoid conflicts
     } catch (err: any) {
       console.error('Error loading players:', err);
       setError('Erro ao carregar atletas: ' + err.message);
