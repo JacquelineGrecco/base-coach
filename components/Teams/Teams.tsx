@@ -3,6 +3,7 @@ import { Plus, Users, Folder, Archive, Edit2, Trash2, AlertCircle, CheckCircle, 
 import { teamService, Team } from '../../services/teamService';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscriptionService, SubscriptionInfo } from '../../services/subscriptionService';
+import { UpgradeLimitModal } from '../UpgradeLimitModal';
 
 interface TeamsProps {
   onViewTeamDetail: (teamId: string) => void;
@@ -642,70 +643,16 @@ const Teams: React.FC<TeamsProps> = ({ onViewTeamDetail, onUpgradeClick }) => {
         </div>
       )}
 
-      {/* Upgrade Prompt Modal */}
-      {showUpgradePrompt && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowUpgradePrompt(false)}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-2xl max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Lock className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                Limite de Times Atingido
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Você atingiu o limite de {teamLimit} {teamLimit === 1 ? 'time' : 'times'} do plano {subscription?.subscription_tier?.toUpperCase() || 'FREE'}.
-                Faça upgrade para criar mais times!
-              </p>
-
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-4 mb-6 text-left">
-                <div className="flex items-center gap-2 mb-2">
-                  <Crown className="w-5 h-5 text-yellow-500" />
-                  <span className="font-semibold text-gray-900">Plano Pro</span>
-                </div>
-                <ul className="space-y-1 text-sm text-gray-700">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-emerald-600" />
-                    Até 5 times
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-emerald-600" />
-                    Atletas ilimitados
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-emerald-600" />
-                    Relatórios avançados
-                  </li>
-                </ul>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowUpgradePrompt(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Talvez mais tarde
-                </button>
-                <button
-                  onClick={() => {
-                    setShowUpgradePrompt(false);
-                    onUpgradeClick && onUpgradeClick();
-                  }}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors font-semibold"
-                >
-                  Ver Planos
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Upgrade Limit Modal */}
+      <UpgradeLimitModal
+        isOpen={showUpgradePrompt}
+        onClose={() => setShowUpgradePrompt(false)}
+        limitType="teams"
+        currentTier={subscription?.subscription_tier || 'free'}
+        currentCount={activeTeams.length}
+        limit={teamLimit}
+        onUpgrade={() => onUpgradeClick && onUpgradeClick()}
+      />
     </div>
   );
 };

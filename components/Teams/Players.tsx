@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, User, Edit2, Trash2, AlertCircle, CheckCircle, UserX, Lock, Crown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { subscriptionService, SubscriptionInfo } from '../../services/subscriptionService';
+import { UpgradeLimitModal } from '../UpgradeLimitModal';
 
 // Futsal positions
 export type PlayerPosition = 'Goleiro' | 'Fixo' | 'Ala' | 'Pivô';
@@ -45,6 +46,7 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -411,7 +413,8 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
 
   function handleCreateButtonClick() {
     if (atPlayerLimit) {
-      return; // Button will be disabled anyway
+      setShowUpgradePrompt(true);
+      return;
     }
     setShowCreateModal(true);
   }
@@ -904,6 +907,17 @@ const Players: React.FC<PlayersProps> = ({ teamId, categoryId, categoryName, onB
           </div>
         </div>
       )}
+
+      {/* Upgrade Limit Modal */}
+      <UpgradeLimitModal
+        isOpen={showUpgradePrompt}
+        onClose={() => setShowUpgradePrompt(false)}
+        limitType="players"
+        currentTier={subscription?.subscription_tier || 'free'}
+        currentCount={players.length}
+        limit={playerLimit}
+        onUpgrade={() => onUpgradeClick && onUpgradeClick()}
+      />
     </div>
   );
 };
