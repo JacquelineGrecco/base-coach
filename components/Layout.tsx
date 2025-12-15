@@ -3,6 +3,7 @@ import { ViewState } from '../types';
 import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu, Settings, Users, MessageCircle, CreditCard, Gift, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { subscriptionService, SubscriptionInfo } from '../services/subscriptionService';
+import { TrialExpirationWarning } from './TrialExpirationWarning';
 
 interface LayoutProps {
   currentView: ViewState;
@@ -97,6 +98,12 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {/* Trial Expiration Warning Modal */}
+      <TrialExpirationWarning 
+        subscription={subscription}
+        onUpgrade={() => onChangeView('PRICING')}
+      />
+
       {/* Sidebar - Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white border-r border-slate-800">
         <div className="p-6 border-b border-slate-800">
