@@ -228,47 +228,64 @@ npm install @stripe/stripe-js stripe
 ---
 
 ### Next Week (Dec 28 - Jan 3)
-**Goal:** Polish & Testing
+**Goal:** Pitch-Ready Mobile UX ⭐ NEW
 
-- [ ] **Monday:** Session notes display (Quick Win 1)
-- [ ] **Tuesday:** Chart improvements (Quick Win 2)
-- [ ] **Wednesday:** Error handling (Quick Win 3)
-- [ ] **Thursday:** Mobile improvements (Quick Win 4)
-- [ ] **Friday:** End-to-end testing all features
-- [ ] **Weekend:** Bug fixing
+- [ ] **Monday-Tuesday:** Pitch Mode (high contrast theme) - 4-6h
+- [ ] **Wednesday:** Larger touch targets (56-64px) - 3-4h
+- [ ] **Thursday:** Haptic feedback + better empty states - 2-3h
+- [ ] **Friday:** Skeleton loading states - 2-3h
+- [ ] **Weekend:** Real-world testing (sunlight, one-hand use)
 
-**Deliverable:** v1.9.5 - "Beta Ready" ✨
+**Deliverable:** v1.10.0 - "Pitch-Ready UX" ☀️
+
+**Why This Matters:** Coaches use the app on the field in direct sunlight with limited time. 
+These improvements make BaseCoach **significantly better** for the actual use case.
 
 ---
 
 ### Week of Jan 4-10
+**Goal:** Testing & Polish
+
+- [ ] **Monday:** Session notes display (Quick Win 1)
+- [ ] **Tuesday:** Chart improvements (Quick Win 2)
+- [ ] **Wednesday:** Error handling (Quick Win 3)
+- [ ] **Thursday:** Tailwind polish (shadows, typography)
+- [ ] **Friday:** End-to-end testing all features
+- [ ] **Weekend:** Bug fixing
+
+**Deliverable:** v1.11.0 - "Beta Ready" ✨
+
+---
+
+### Week of Jan 11-17
 **Goal:** Documentation & Soft Launch Prep
 
 - [ ] **Monday:** Create user onboarding guide
 - [ ] **Tuesday:** Create FAQ page + help docs
 - [ ] **Wednesday:** Update Terms/Privacy Policy
 - [ ] **Thursday:** Set up support (WhatsApp Business)
-- [ ] **Friday:** Prepare beta invitations
-- [ ] **Weekend:** Final review
+- [ ] **Friday:** Prepare beta invitations + final review
+- [ ] **Weekend:** Rest before launch
 
 **Deliverable:** v2.0.0-beta - "Soft Launch" 🚀
 
 ---
 
-### Week of Jan 11-17
+### Week of Jan 18-24
 **Goal:** Beta Testing
 
 - [ ] Invite 5-10 coaches
-- [ ] Monitor usage daily
-- [ ] Collect feedback
+- [ ] Monitor usage daily (especially mobile usage on field)
+- [ ] Collect feedback on Pitch Mode
 - [ ] Fix critical bugs
 - [ ] Iterate quickly
 
 **Success Criteria:**
 - ✅ 80%+ complete onboarding
 - ✅ 50%+ record 3+ sessions
+- ✅ 80%+ use mobile for sessions (pitch-ready!)
 - ✅ 20%+ trial-to-paid conversion
-- ✅ Positive feedback
+- ✅ Positive feedback on mobile UX
 
 **Deliverable:** v2.0.0 - "Public Launch" 🎊
 
