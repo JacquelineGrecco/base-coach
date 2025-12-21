@@ -151,6 +151,30 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
     });
   };
 
+  const handleFinishSession = () => {
+    // Check if all players have been evaluated
+    const unevaluatedPlayers = players.filter(player => {
+      const evaluation = evaluations.find(e => e.playerId === player.id);
+      if (!evaluation) return true;
+      // Check if player has at least one score
+      return Object.keys(evaluation.scores).length === 0;
+    });
+
+    if (unevaluatedPlayers.length > 0) {
+      const playerNames = unevaluatedPlayers.map(p => p.name).join(', ');
+      const message = unevaluatedPlayers.length === 1
+        ? `O atleta ${playerNames} ainda não foi avaliado.\n\nDeseja finalizar a sessão mesmo assim?`
+        : `Os atletas ${playerNames} ainda não foram avaliados.\n\nDeseja finalizar a sessão mesmo assim?`;
+      
+      if (!window.confirm(message)) {
+        return; // User cancelled
+      }
+    }
+
+    // Proceed with finishing the session
+    onEndSession(evaluations);
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -244,7 +268,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
                 Cancel
             </button>
             <button 
-                onClick={() => onEndSession(evaluations)}
+                onClick={handleFinishSession}
                 className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 shadow-sm flex items-center"
             >
                 <Save className="w-4 h-4 mr-2" />
