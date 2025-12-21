@@ -182,9 +182,7 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
     if (selectedValences.includes(valenceId)) {
       setSelectedValences(selectedValences.filter(id => id !== valenceId));
     } else {
-      if (selectedValences.length < 3) {
-        setSelectedValences([...selectedValences, valenceId]);
-      }
+      setSelectedValences([...selectedValences, valenceId]);
     }
   };
 
@@ -465,19 +463,19 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
         <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              {selectedValences.length === 3 ? (
+              {selectedValences.length > 0 ? (
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
               ) : (
                 <AlertCircle className="w-5 h-5 text-blue-600" />
               )}
               <span className="font-semibold text-slate-900">
-                {selectedValences.length} of 3 criteria selected
+                {selectedValences.length} {selectedValences.length === 1 ? 'critério selecionado' : 'critérios selecionados'}
               </span>
             </div>
             <span className="text-sm text-slate-600">
-              {selectedValences.length === 0 && "Select at least 1 criterion"}
-              {selectedValences.length > 0 && selectedValences.length < 3 && "Add more criteria or start"}
-              {selectedValences.length === 3 && "Maximum reached - ready to start!"}
+              {selectedValences.length === 0 && "Selecione pelo menos 1 critério"}
+              {selectedValences.length > 0 && selectedValences.length <= 3 && "Recomendado: 1-3 critérios para avaliação rápida"}
+              {selectedValences.length > 3 && `${selectedValences.length} critérios selecionados - avaliação detalhada`}
             </span>
           </div>
         </div>
@@ -503,20 +501,16 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {valences.map((valence) => {
                   const isSelected = selectedValences.includes(valence.id);
-                  const isDisabled = !isSelected && selectedValences.length >= 3;
                   
                   return (
                     <button
                       key={valence.id}
                       onClick={() => toggleValence(valence.id)}
-                      disabled={isDisabled}
                       className={`
                         p-4 rounded-lg border-2 text-left transition-all transform
                         ${isSelected 
                           ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]' 
-                          : isDisabled
-                            ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
-                            : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 hover:scale-[1.01]'
+                          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 hover:scale-[1.01]'
                         }
                       `}
                     >
@@ -580,8 +574,8 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
         {/* Helper Text */}
         <div className="px-6 py-3 bg-blue-50 border-t border-blue-100">
           <p className="text-xs text-slate-600 text-center">
-            💡 <strong>Dica:</strong> Selecionar menos critérios (1-3) permite avaliação mais rápida durante o treino. 
-            Você pode focar em critérios diferentes em cada sessão.
+            💡 <strong>Dica:</strong> Recomendamos 1-3 critérios para avaliação rápida durante o treino, 
+            mas você pode selecionar quantos quiser para uma análise mais detalhada.
           </p>
         </div>
       </div>
