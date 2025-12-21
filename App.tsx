@@ -17,6 +17,7 @@ import { TrialExpirationModal } from './components/TrialExpirationModal';
 import { ViewState, Evaluation } from './types';
 import { sessionService } from './services/sessionService';
 import { subscriptionService, SubscriptionInfo } from './services/subscriptionService';
+import { supabase } from './lib/supabase';
 
 function AppContent() {
   const { user, loading } = useAuth();
