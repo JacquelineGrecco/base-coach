@@ -1831,11 +1831,11 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                 Evolução de Todos os Critérios
               </h3>
               <ResponsiveContainer width="100%" height={450}>
-                <LineChart data={filteredEvolutionData}>
+                <LineChart data={filteredEvolutionData} margin={{ top: 5, right: 30, left: 20, bottom: 40 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
-                    label={{ value: 'Data da Sessão', position: 'insideBottom', offset: -5 }}
+                    label={{ value: 'Data da Sessão', position: 'insideBottom', offset: -10 }}
                   />
                   <YAxis 
                     domain={[0, 5]}
@@ -1843,8 +1843,8 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                   />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0' }}
-                                />
-                                <Legend />
+                  />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
                   {playerStats.map((stat, index) => {
                     const colors = ['#3b82f6', '#ef4444', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899', '#06b6d4', '#f97316'];
                     return (
