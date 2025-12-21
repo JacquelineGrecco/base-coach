@@ -87,6 +87,7 @@ function AppContent() {
     teamId: string;
     categoryId: string | null;
     selectedValenceIds: string[];
+    presentPlayerIds: string[];
   } | null>(null);
 
   const handleStartSessionSetup = () => {
@@ -97,6 +98,7 @@ function AppContent() {
     teamId: string;
     categoryId: string | null;
     selectedValenceIds: string[];
+    presentPlayerIds: string[];
   }) => {
     setSessionData(data);
     setCurrentView("ACTIVE_SESSION");
@@ -117,6 +119,38 @@ function AppContent() {
       if (sessionError || !session) {
         alert('Erro ao salvar sessão: ' + sessionError?.message);
         return;
+      }
+
+      // Save attendance for all players (present + absent)
+      // Get all players from the team/category to mark absent ones
+      let allPlayersQuery = supabase
+        .from('players')
+        .select('id')
+        .eq('team_id', sessionData.teamId)
+        .eq('is_active', true);
+      
+      if (sessionData.categoryId) {
+        allPlayersQuery = allPlayersQuery.eq('category_id', sessionData.categoryId);
+      }
+      
+      const { data: allPlayers } = await allPlayersQuery;
+      
+      if (allPlayers) {
+        const attendanceRecords = allPlayers.map(player => ({
+          session_id: session.id,
+          player_id: player.id,
+          is_present: sessionData.presentPlayerIds.includes(player.id),
+          arrival_time: sessionData.presentPlayerIds.includes(player.id) ? new Date().toISOString() : null,
+        }));
+        
+        const { error: attendanceError } = await supabase
+          .from('session_attendance')
+          .insert(attendanceRecords);
+        
+        if (attendanceError) {
+          console.error('Error saving attendance:', attendanceError);
+          // Don't fail the whole session save, just log it
+        }
       }
 
       // Transform and save evaluations
@@ -144,7 +178,11 @@ function AppContent() {
       setSessionEvaluations(prev => [...prev, ...newEvaluations]);
       
       // Show success and redirect
-      alert('✅ Sessão salva com sucesso! ' + evaluationsToSave.length + ' avaliações registradas.');
+      const presentCount = sessionData.presentPlayerIds.length;
+      const totalCount = allPlayers?.length || presentCount;
+      alert(`✅ Sessão salva com sucesso!\n\n` +
+            `📊 ${evaluationsToSave.length} avaliações registradas\n` +
+            `✓ ${presentCount}/${totalCount} atletas presentes`);
       setCurrentView("DASHBOARD");
     } catch (error: any) {
       console.error('Error saving session:', error);
@@ -188,9 +226,10 @@ function AppContent() {
                 teamId={sessionData.teamId}
                 categoryId={sessionData.categoryId}
                 selectedValenceIds={sessionData.selectedValenceIds}
+                presentPlayerIds={sessionData.presentPlayerIds}
                 onEndSession={handleEndSession} 
                 onCancel={() => setCurrentView("DASHBOARD")} 
-             />
+            />
         );
       case "DRILLS":
         return <DrillLibrary />;

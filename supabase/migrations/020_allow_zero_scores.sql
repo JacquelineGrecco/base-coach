@@ -12,3 +12,7 @@ ADD CONSTRAINT evaluations_score_check CHECK (score BETWEEN 0 AND 5);
 COMMENT ON COLUMN evaluations.score IS 'Player score for this valence (0 = not evaluated, 1-5 = rating)';
 
 
+
+
+
+

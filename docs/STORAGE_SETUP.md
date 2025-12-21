@@ -220,3 +220,7 @@ If no picture uploaded, shows **circular badge with initials**:
 **Next Steps:** Create the bucket in Supabase dashboard, then test!
 
 
+
+
+
+

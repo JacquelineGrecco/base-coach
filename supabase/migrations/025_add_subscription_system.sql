@@ -422,3 +422,7 @@ END $$;
 -- 3. Add UpgradePrompt component
 -- 4. Gate premium features (radar charts, evolution charts, AI insights)
 
+
+
+
+

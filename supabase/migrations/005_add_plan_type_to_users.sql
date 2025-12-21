@@ -19,3 +19,7 @@ WHERE plan_type IS NULL;
 COMMENT ON COLUMN users.plan_type IS 'User subscription plan: free, basic, or premium';
 
 
+
+
+
+

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { VALENCES } from '../constants';
-import { ChevronRight, AlertCircle, CheckCircle2, Users, Folder } from 'lucide-react';
+import { ChevronRight, AlertCircle, CheckCircle2, Users, Folder, UserCheck, UserX } from 'lucide-react';
 import { teamService, Team } from '../services/teamService';
 import { categoryService } from '../services/categoryService';
 import { supabase } from '../lib/supabase';
@@ -10,6 +10,7 @@ interface SessionSetupProps {
     teamId: string;
     categoryId: string | null;
     selectedValenceIds: string[];
+    presentPlayerIds: string[]; // Added for attendance tracking
   }) => void;
   onCancel: () => void;
   onNavigateToTeams?: () => void;
@@ -22,11 +23,20 @@ interface Category {
   player_count?: number;
 }
 
+interface Player {
+  id: string;
+  name: string;
+  jersey_number?: number;
+  position?: string;
+}
+
 const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, onNavigateToTeams }) => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [playerCount, setPlayerCount] = useState(0);
   const [noCategoryPlayerCount, setNoCategoryPlayerCount] = useState(0);
   const [totalTeamPlayerCount, setTotalTeamPlayerCount] = useState(0);
@@ -42,6 +52,7 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
     if (selectedTeamId) {
       loadCategories(selectedTeamId);
       loadPlayerCount(selectedTeamId, selectedCategoryId);
+      loadPlayers(selectedTeamId, selectedCategoryId); // Load players for selection
     }
   }, [selectedTeamId, selectedCategoryId]);
 
@@ -135,6 +146,38 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
     }
   }
 
+  async function loadPlayers(teamId: string, categoryId: string | null) {
+    try {
+      let query = supabase
+        .from('players')
+        .select('id, name, jersey_number, position')
+        .eq('team_id', teamId)
+        .eq('is_active', true)
+        .order('jersey_number', { ascending: true });
+
+      if (categoryId && categoryId !== 'no-category') {
+        query = query.eq('category_id', categoryId);
+      } else if (categoryId === 'no-category') {
+        query = query.is('category_id', null);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error loading players:', error);
+        setPlayers([]);
+        return;
+      }
+
+      setPlayers(data || []);
+      // Auto-select all players by default
+      setSelectedPlayerIds((data || []).map(p => p.id));
+    } catch (error: any) {
+      console.error('Error loading players:', error);
+      setPlayers([]);
+    }
+  }
+
   const toggleValence = (valenceId: string) => {
     if (selectedValences.includes(valenceId)) {
       setSelectedValences(selectedValences.filter(id => id !== valenceId));
@@ -145,13 +188,30 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
     }
   };
 
+  const togglePlayer = (playerId: string) => {
+    if (selectedPlayerIds.includes(playerId)) {
+      setSelectedPlayerIds(selectedPlayerIds.filter(id => id !== playerId));
+    } else {
+      setSelectedPlayerIds([...selectedPlayerIds, playerId]);
+    }
+  };
+
+  const toggleAllPlayers = () => {
+    if (selectedPlayerIds.length === players.length) {
+      setSelectedPlayerIds([]);
+    } else {
+      setSelectedPlayerIds(players.map(p => p.id));
+    }
+  };
+
   const handleStart = () => {
-    if (selectedValences.length === 0 || !selectedTeamId) return;
+    if (selectedValences.length === 0 || !selectedTeamId || selectedPlayerIds.length === 0) return;
     
     onStartSession({
       teamId: selectedTeamId,
       categoryId: selectedCategoryId === 'no-category' ? null : selectedCategoryId,
       selectedValenceIds: selectedValences,
+      presentPlayerIds: selectedPlayerIds,
     });
   };
 
@@ -294,6 +354,113 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
           </div>
         </div>
 
+        {/* Player Presence Selection */}
+        {players.length > 0 && (
+          <div className="p-6 bg-white border-b border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-emerald-600" />
+                Presença dos Atletas
+              </h3>
+              <button
+                onClick={toggleAllPlayers}
+                className="text-sm px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium"
+              >
+                {selectedPlayerIds.length === players.length ? 'Desmarcar Todos' : 'Marcar Todos'}
+              </button>
+            </div>
+            
+            <p className="text-sm text-slate-600 mb-4">
+              Marque os atletas que estão <strong>presentes</strong> no treino. Apenas atletas marcados serão avaliados.
+            </p>
+
+            {/* Player Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-2">
+              {players.map((player) => {
+                const isPresent = selectedPlayerIds.includes(player.id);
+                
+                return (
+                  <button
+                    key={player.id}
+                    onClick={() => togglePlayer(player.id)}
+                    className={`
+                      p-3 rounded-lg border-2 text-left transition-all
+                      ${isPresent
+                        ? 'border-emerald-500 bg-emerald-50'
+                        : 'border-slate-200 bg-slate-50 opacity-60'
+                      }
+                      hover:shadow-md
+                    `}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {/* Checkbox Visual */}
+                        <div className={`
+                          w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0
+                          ${isPresent
+                            ? 'border-emerald-500 bg-emerald-500'
+                            : 'border-slate-300 bg-white'
+                          }
+                        `}>
+                          {isPresent && (
+                            <CheckCircle2 className="w-4 h-4 text-white" />
+                          )}
+                        </div>
+                        
+                        {/* Player Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-slate-900 truncate">
+                            {player.jersey_number && (
+                              <span className="text-emerald-600 font-bold mr-1.5">
+                                #{player.jersey_number}
+                              </span>
+                            )}
+                            {player.name}
+                          </div>
+                          {player.position && (
+                            <div className="text-xs text-slate-500 truncate">
+                              {player.position}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Status Icon */}
+                      <div className="ml-2">
+                        {isPresent ? (
+                          <UserCheck className="w-5 h-5 text-emerald-600" />
+                        ) : (
+                          <UserX className="w-5 h-5 text-slate-400" />
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Summary Bar */}
+            <div className="mt-4 p-3 bg-emerald-50 rounded-lg border border-emerald-200 flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-700">Atletas presentes:</span>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-emerald-600">
+                  {selectedPlayerIds.length}
+                </span>
+                <span className="text-sm text-slate-500">/ {players.length}</span>
+              </div>
+            </div>
+
+            {selectedPlayerIds.length === 0 && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                <p className="text-sm text-amber-700">
+                  Selecione pelo menos 1 atleta para iniciar a sessão
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Selection Counter */}
         <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
           <div className="flex items-center justify-between">
@@ -391,15 +558,19 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
           </button>
           <button
             onClick={handleStart}
-            disabled={selectedValences.length === 0 || playerCount === 0}
+            disabled={selectedValences.length === 0 || playerCount === 0 || selectedPlayerIds.length === 0}
             className={`
               px-8 py-2.5 rounded-lg font-semibold flex items-center transition-all
-              ${selectedValences.length === 0 || playerCount === 0
+              ${selectedValences.length === 0 || playerCount === 0 || selectedPlayerIds.length === 0
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200 hover:scale-105'
               }
             `}
-            title={playerCount === 0 ? 'Adicione atletas ao time primeiro' : ''}
+            title={
+              playerCount === 0 ? 'Adicione atletas ao time primeiro' :
+              selectedPlayerIds.length === 0 ? 'Marque pelo menos 1 atleta presente' :
+              ''
+            }
           >
             Iniciar Sessão
             <ChevronRight className="w-5 h-5 ml-2" />

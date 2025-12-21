@@ -8,6 +8,7 @@ interface ActiveSessionProps {
   teamId: string;
   categoryId: string | null;
   selectedValenceIds: string[];
+  presentPlayerIds: string[];
   onEndSession: (evaluations: Evaluation[]) => void;
   onCancel: () => void;
 }
@@ -22,7 +23,8 @@ interface DbPlayer {
 const ActiveSession: React.FC<ActiveSessionProps> = ({ 
   teamId, 
   categoryId, 
-  selectedValenceIds, 
+  selectedValenceIds,
+  presentPlayerIds, 
   onEndSession, 
   onCancel 
 }) => {
@@ -40,7 +42,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
   // Load players on mount
   useEffect(() => {
     loadPlayers();
-  }, [teamId, categoryId]);
+  }, [teamId, categoryId, presentPlayerIds]);
 
   async function loadPlayers() {
     setLoading(true);
@@ -50,13 +52,14 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
         .select('id, name, position, jersey_number')
         .eq('team_id', teamId)
         .eq('is_active', true)
+        .in('id', presentPlayerIds) // Only load present players
         .order('jersey_number', { ascending: true, nullsFirst: false })
         .order('name');
 
       if (categoryId) {
         query = query.eq('category_id', categoryId);
       } else if (categoryId === null) {
-        // Load all players regardless of category
+        // Load all present players regardless of category
         // Don't filter by category_id
       }
 
