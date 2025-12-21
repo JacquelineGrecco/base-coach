@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Activity, Calendar, ArrowRight, AlertCircle, Plus, Folder, Clock, Target } from 'lucide-react';
+import { Users, Activity, Calendar, ArrowRight, AlertCircle, Plus, Folder, Clock, Target, UserCheck } from 'lucide-react';
 import { teamService } from '../services/teamService';
 import { sessionService, Session } from '../services/sessionService';
 import { supabase } from '../lib/supabase';
@@ -98,8 +98,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
         return;
       }
       
+      // Load attendance data for each session
+      const sessionsWithAttendance = await Promise.all(
+        (sessionsData || []).map(async (session) => {
+          const { data: attendanceData } = await supabase
+            .from('session_attendance')
+            .select('id, is_present')
+            .eq('session_id', session.id);
+          
+          const totalPlayers = attendanceData?.length || 0;
+          const presentCount = attendanceData?.filter(a => a.is_present).length || 0;
+          
+          return {
+            ...session,
+            attendance: {
+              total: totalPlayers,
+              present: presentCount,
+              absent: totalPlayers - presentCount,
+            }
+          };
+        })
+      );
+      
       // Show only the 5 most recent sessions
-      setSessions((sessionsData || []).slice(0, 5));
+      setSessions(sessionsWithAttendance.slice(0, 5));
     } catch (error: any) {
       console.error('Error loading sessions:', error);
     }
@@ -172,15 +194,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
                     <Folder className="w-5 h-5 mr-2" />
                     Gerenciar Times
                 </button>
-                <button 
-                    onClick={onStartSession}
+            <button 
+                onClick={onStartSession}
                     disabled={players.length === 0}
                     className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all transform hover:scale-105 flex items-center font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                     title={players.length === 0 ? 'Adicione atletas ao time primeiro' : 'Iniciar nova sessão'}
-                >
+            >
                     Iniciar Nova Sessão
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                </button>
+                <ArrowRight className="w-5 h-5 ml-2" />
+            </button>
             </div>
         </div>
 
@@ -277,47 +299,47 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
                 </div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                      <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-                          <tr>
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                        <tr>
                               <th className="px-6 py-3 font-medium">#</th>
                               <th className="px-6 py-3 font-medium">Atleta</th>
                               <th className="px-6 py-3 font-medium">Posição</th>
                               <th className="px-6 py-3 font-medium">Nascimento</th>
-                              <th className="px-6 py-3 font-medium text-right">Status</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
+                            <th className="px-6 py-3 font-medium text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
                           {players.map(player => (
-                              <tr key={player.id} className="hover:bg-slate-50 transition-colors">
+                            <tr key={player.id} className="hover:bg-slate-50 transition-colors">
                                   <td className="px-6 py-4 text-slate-600 font-semibold">
                                       {player.jersey_number || '-'}
                                   </td>
-                                  <td className="px-6 py-4">
-                                      <div className="flex items-center">
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center">
                                           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
                                               <span className="text-blue-700 font-semibold text-sm">
                                                   {player.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                                               </span>
                                           </div>
-                                          <span className="font-medium text-slate-900">{player.name}</span>
-                                      </div>
-                                  </td>
+                                        <span className="font-medium text-slate-900">{player.name}</span>
+                                    </div>
+                                </td>
                                   <td className="px-6 py-4 text-slate-600 text-sm">{player.position || '-'}</td>
                                   <td className="px-6 py-4 text-slate-600 text-sm">
                                       {player.birth_date ? new Date(player.birth_date).toLocaleDateString('pt-BR') : '-'}
                                   </td>
-                                  <td className="px-6 py-4 text-right">
-                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <td className="px-6 py-4 text-right">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                           Disponível
-                                      </span>
-                                  </td>
-                              </tr>
-                          ))}
-                      </tbody>
-                  </table>
-              </div>
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
             )}
         </div>
 
@@ -377,6 +399,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
                               <span className="flex items-center gap-1">
                                 <Clock className="w-4 h-4" />
                                 {session.duration_minutes} min
+                              </span>
+                            )}
+                            {session.attendance && session.attendance.total > 0 && (
+                              <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                                <UserCheck className="w-4 h-4" />
+                                {session.attendance.present}/{session.attendance.total} presentes
                               </span>
                             )}
                           </div>
@@ -444,6 +472,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
                     <div className="text-sm text-blue-600 mb-1">Avaliações</div>
                     <div className="font-semibold text-blue-900">{sessionEvaluations.length}</div>
                   </div>
+                  {selectedSession.attendance && selectedSession.attendance.total > 0 && (
+                    <div className="bg-emerald-50 p-4 rounded-lg">
+                      <div className="text-sm text-emerald-600 mb-1 flex items-center gap-1">
+                        <UserCheck className="w-4 h-4" />
+                        Presença
+                      </div>
+                      <div className="font-semibold text-emerald-900">
+                        {selectedSession.attendance.present}/{selectedSession.attendance.total}
+                      </div>
+                      <div className="text-xs text-emerald-600 mt-1">
+                        {((selectedSession.attendance.present / selectedSession.attendance.total) * 100).toFixed(0)}% presentes
+                      </div>
+                    </div>
+                  )}
                   {selectedSession.duration_minutes && (
                     <div className="bg-green-50 p-4 rounded-lg">
                       <div className="text-sm text-green-600 mb-1">Duração</div>

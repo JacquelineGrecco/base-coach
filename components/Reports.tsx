@@ -34,6 +34,18 @@ interface SessionHistory {
   evaluation_count: number;
 }
 
+interface AttendanceRecord {
+  session_id: string;
+  session_date: string;
+  is_present: boolean;
+}
+
+interface AttendanceStats {
+  total_sessions: number;
+  attended_sessions: number;
+  attendance_rate: number;
+}
+
 interface EvolutionData {
   date: string;
   sessionId: string;
@@ -65,6 +77,8 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
   const [aiInsights, setAiInsights] = useState<PlayerInsights | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [attendanceStats, setAttendanceStats] = useState<AttendanceStats | null>(null);
   
   // Subscription state
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
@@ -137,6 +151,7 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
     if (selectedPlayerId) {
       loadPlayerData(selectedPlayerId);
       loadEvolutionData(selectedPlayerId);
+      loadAttendanceData(selectedPlayerId);
     }
   }, [selectedPlayerId]);
 
@@ -414,6 +429,51 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
 
     } catch (err: any) {
       console.error('Error loading evolution data:', err);
+    }
+  }
+
+  async function loadAttendanceData(playerId: string) {
+    try {
+      // Get all attendance records for this player
+      const { data: attendanceData, error } = await supabase
+        .from('session_attendance')
+        .select(`
+          session_id,
+          is_present,
+          sessions!inner(id, date, team_id)
+        `)
+        .eq('player_id', playerId)
+        .order('sessions(date)', { ascending: false });
+
+      if (error) throw error;
+
+      if (!attendanceData || attendanceData.length === 0) {
+        setAttendanceRecords([]);
+        setAttendanceStats({ total_sessions: 0, attended_sessions: 0, attendance_rate: 0 });
+        return;
+      }
+
+      // Transform data
+      const records: AttendanceRecord[] = (attendanceData as any[]).map((record) => ({
+        session_id: record.session_id,
+        session_date: record.sessions.date,
+        is_present: record.is_present
+      }));
+
+      setAttendanceRecords(records);
+
+      // Calculate stats
+      const totalSessions = records.length;
+      const attendedSessions = records.filter(r => r.is_present).length;
+      const attendanceRate = totalSessions > 0 ? (attended_sessions / totalSessions) * 100 : 0;
+
+      setAttendanceStats({
+        total_sessions: totalSessions,
+        attended_sessions: attendedSessions,
+        attendance_rate: Number(attendanceRate.toFixed(1))
+      });
+    } catch (err: any) {
+      console.error('Error loading attendance data:', err);
     }
   }
 
