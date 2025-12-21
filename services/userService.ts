@@ -392,6 +392,16 @@ export const userService = {
         `)
         .eq('sessions.teams.user_id', userId);
 
+      // Get all attendance records
+      const { data: attendance } = await supabase
+        .from('session_attendance')
+        .select(`
+          *,
+          session:sessions!inner(date, team:teams!inner(name)),
+          player:players!inner(name)
+        `)
+        .eq('sessions.teams.user_id', userId);
+
       const exportData = {
         export_date: new Date().toISOString(),
         profile: profile,
@@ -399,11 +409,13 @@ export const userService = {
         players: players || [],
         sessions: sessions || [],
         evaluations: evaluations || [],
+        attendance: attendance || [],
         total_records: {
           teams: teams?.length || 0,
           players: players?.length || 0,
           sessions: sessions?.length || 0,
           evaluations: evaluations?.length || 0,
+          attendance: attendance?.length || 0,
         }
       };
 
@@ -532,6 +544,23 @@ export const userService = {
           ['player', 'team', 'date', 'valence', 'score', 'notes']
         );
         this.downloadCSV(evaluationsCSV, `basecoach-avaliacoes-${timestamp}.csv`);
+      }
+
+      // Export Attendance
+      if (data.attendance && data.attendance.length > 0) {
+        const attendanceData = data.attendance.map((a: any) => ({
+          player: a.player?.name || '',
+          team: a.session?.team?.name || '',
+          date: a.session?.date || '',
+          status: a.is_present ? 'Presente' : 'Ausente',
+          arrival_time: a.arrival_time || '',
+          notes: a.notes || '',
+        }));
+        const attendanceCSV = this.convertToCSV(
+          attendanceData,
+          ['player', 'team', 'date', 'status', 'arrival_time', 'notes']
+        );
+        this.downloadCSV(attendanceCSV, `basecoach-presenca-${timestamp}.csv`);
       }
 
       return { error: null };

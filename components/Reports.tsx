@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users, Download, FileText, Brain, Sparkles, Target, Lightbulb, Share2, Link, Check, Lock } from 'lucide-react';
+import { BarChart, Clock, TrendingUp, AlertCircle, User, Calendar, Award, Activity, Users, Download, FileText, Brain, Sparkles, Target, Lightbulb, Share2, Link, Check, Lock, UserCheck } from 'lucide-react';
 import { VALENCES } from '../constants';
 import { supabase } from '../lib/supabase';
 import { sessionService, SessionEvaluation } from '../services/sessionService';
@@ -465,7 +465,7 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
       // Calculate stats
       const totalSessions = records.length;
       const attendedSessions = records.filter(r => r.is_present).length;
-      const attendanceRate = totalSessions > 0 ? (attended_sessions / totalSessions) * 100 : 0;
+      const attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
 
       setAttendanceStats({
         total_sessions: totalSessions,
@@ -1463,6 +1463,60 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
           </p>
         </div>
       </div>
+
+      {/* Attendance Stats Card */}
+      {attendanceStats && attendanceStats.total_sessions > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-emerald-100 rounded-lg">
+              <UserCheck className="w-5 h-5 text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900">Presença</h3>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-emerald-600">{attendanceStats.attendance_rate}%</div>
+              <div className="text-sm text-slate-500 mt-1">Taxa de Presença</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-slate-900">{attendanceStats.attended_sessions}</div>
+              <div className="text-sm text-slate-500 mt-1">Sessões Presentes</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-slate-400">{attendanceStats.total_sessions - attendanceStats.attended_sessions}</div>
+              <div className="text-sm text-slate-500 mt-1">Ausências</div>
+            </div>
+          </div>
+
+          {/* Recent Attendance History */}
+          {attendanceRecords.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <h4 className="text-sm font-semibold text-slate-700 mb-3">Histórico Recente</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {attendanceRecords.slice(0, 10).map((record, idx) => (
+                  <div key={idx} className="flex items-center justify-between py-2 px-3 bg-slate-50 rounded-lg">
+                    <span className="text-sm text-slate-700">
+                      {new Date(record.session_date).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </span>
+                    <span className={`text-xs font-medium px-2 py-1 rounded ${
+                      record.is_present 
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}>
+                      {record.is_present ? 'Presente' : 'Ausente'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Radar Chart */}
       {radarChartData.length > 0 && (
