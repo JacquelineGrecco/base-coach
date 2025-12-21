@@ -263,7 +263,7 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
           count: data.count,
           player_count: data.playerCounts.size,
         };
-      });
+    });
 
       setTeamStats(stats.sort((a, b) => b.average - a.average));
     } catch (err: any) {
@@ -993,8 +993,8 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
   }
 
   if (error) {
-    return (
-      <div className="p-6 max-w-7xl mx-auto">
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-red-900 mb-2">Erro ao carregar relatórios</h3>
@@ -1081,7 +1081,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
 
           {/* View Mode Tabs */}
           <div className="flex gap-2 border-t border-slate-200 pt-4">
-            <button
+                        <button
               onClick={() => setViewMode('team')}
               className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
                 viewMode === 'team'
@@ -1092,8 +1092,8 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
               <div className="flex items-center justify-center gap-2">
                 <Users className="w-4 h-4" />
                 Visão Geral do Time
-              </div>
-            </button>
+                            </div>
+                        </button>
             <button
               onClick={() => setViewMode('player')}
               className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -1124,7 +1124,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
               </option>
             ))}
           </select>
-        </div>
+                </div>
 
         {/* Empty State */}
         <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-slate-200">
@@ -1135,7 +1135,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
           <p className="text-slate-600 mb-6">
             Complete sessões de treino avaliando este atleta para gerar relatórios de desempenho.
           </p>
-        </div>
+            </div>
       </div>
     );
   }
@@ -1147,7 +1147,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Relatórios dos Atletas</h1>
           <p className="text-slate-600 mt-1">Análise de desempenho e progresso</p>
-        </div>
+                            </div>
       </div>
 
       {/* Team Selector and View Mode Tabs */}
@@ -1167,7 +1167,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
 
         {/* View Mode Tabs */}
         <div className="flex gap-2 border-t border-slate-200 pt-4">
-          <button
+                                <button
             onClick={() => setViewMode('team')}
             className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
               viewMode === 'team'
@@ -1179,8 +1179,8 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
               <Users className="w-4 h-4" />
               Visão Geral do Time
             </div>
-          </button>
-          <button
+                                </button>
+                                <button
             onClick={() => setViewMode('player')}
             className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
               viewMode === 'player'
@@ -1192,10 +1192,10 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
               <User className="w-4 h-4" />
               Atleta Individual
             </div>
-          </button>
-        </div>
-      </div>
-
+                                </button>
+                            </div>
+                        </div>
+                        
       {/* Player Selector (only shown in player mode) */}
       {viewMode === 'player' && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
@@ -1244,7 +1244,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
           {/* Team Summary Card */}
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
-              <div>
+                            <div>
                 <h2 className="text-2xl font-bold mb-2">
                   {teams.find(t => t.id === selectedTeamId)?.name}
                 </h2>
@@ -1352,7 +1352,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
               {getInitials(selectedPlayer.name)}
-            </div>
+                            </div>
             <div className="flex-1">
               <h2 className="text-2xl font-bold">{selectedPlayer.name}</h2>
               <div className="flex gap-4 mt-2 text-blue-100">
@@ -1361,12 +1361,12 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                 )}
                 {selectedPlayer.position && (
                   <span>{selectedPlayer.position}</span>
-                )}
-              </div>
-            </div>
+                                )}
+                            </div>
+                        </div>
             <div className="flex flex-col gap-2">
               <div className="flex gap-2">
-                <button
+                                <button
                   onClick={handleExportPDF}
                   disabled={!subscription || !TIER_FEATURES[subscription.tier].pdfExport}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
@@ -1385,7 +1385,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                   {(!subscription || !TIER_FEATURES[subscription.tier].pdfExport) && (
                     <span className="text-xs bg-blue-500 px-1.5 py-0.5 rounded">Pro</span>
                   )}
-                </button>
+                                </button>
                 <button
                   onClick={handleShareReport}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
@@ -1525,10 +1525,10 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      )}
+                            </div>
+                        )}
+                    </div>
+                )}
 
       {/* Radar Chart */}
       {radarChartData.length > 0 && (
@@ -1550,7 +1550,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                 <Legend />
               </RadarChart>
             </ResponsiveContainer>
-          </div>
+                    </div>
         ) : (
           <UpgradePrompt
             feature="Gráficos Radar"
@@ -1634,7 +1634,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Clock className="w-5 h-5 text-blue-600" />
                 </div>
-                <div>
+                        <div>
                   <div className="font-semibold text-slate-900">
                     {new Date(session.date).toLocaleDateString('pt-BR', {
                       day: '2-digit',
@@ -1683,8 +1683,8 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                   ✨ Insights ilimitados
                 </p>
               )}
-            </div>
-            <button
+                        </div>
+                        <button 
               onClick={handleGenerateInsights}
               disabled={loadingInsights || playerStats.length === 0}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
@@ -1702,8 +1702,8 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                   </span>
                 </>
               )}
-            </button>
-          </div>
+                        </button>
+                    </div>
 
           {aiInsights ? (
             <div className="space-y-6">
@@ -1712,7 +1712,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                 <h4 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
                   <Award className="w-4 h-4" />
                   Pontos Fortes
-                </h4>
+                            </h4>
                 <ul className="space-y-2">
                   {aiInsights.strengths.map((strength, index) => (
                     <li key={index} className="flex items-start gap-2 text-slate-700">
@@ -1774,7 +1774,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
               <p className="text-sm text-slate-500">
                 A análise incluirá pontos fortes, áreas de melhoria e recomendações personalizadas de treino.
               </p>
-            </div>
+                        </div>
           )}
         </div>
       ) : (
@@ -1807,49 +1807,30 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
               </div>
             </div>
 
-            {/* Valence Selector and Date Range Filter */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Selecionar Critério para Visualizar Evolução
-                </label>
-                <select
-                  value={selectedValenceForEvolution}
-                  onChange={(e) => setSelectedValenceForEvolution(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  {playerStats.map(stat => (
-                    <option key={stat.valence_id} value={stat.valence_id}>
-                      {stat.valence_name} (Média: {stat.average.toFixed(1)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Período
-                </label>
-                <select
-                  value={dateRangeFilter}
-                  onChange={(e) => setDateRangeFilter(e.target.value as any)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="all">Todas as Sessões</option>
-                  <option value="last7">Últimos 7 dias</option>
-                  <option value="last30">Últimos 30 dias</option>
-                  <option value="last90">Últimos 90 dias</option>
-                </select>
-              </div>
+            {/* Date Range Filter */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Período
+              </label>
+              <select
+                value={dateRangeFilter}
+                onChange={(e) => setDateRangeFilter(e.target.value as any)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="all">Todas as Sessões</option>
+                <option value="last7">Últimos 7 dias</option>
+                <option value="last30">Últimos 30 dias</option>
+                <option value="last90">Últimos 90 dias</option>
+              </select>
             </div>
 
             {/* Evolution Line Chart */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-purple-600" />
-                Evolução: {playerStats.find(s => s.valence_id === selectedValenceForEvolution)?.valence_name}
+                Evolução de Todos os Critérios
               </h3>
-              <ResponsiveContainer width="100%" height={400}>
+              <ResponsiveContainer width="100%" height={450}>
                 <LineChart data={filteredEvolutionData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
@@ -1862,81 +1843,82 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                   />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0' }}
-                    formatter={(value: number) => [`${value.toFixed(1)} / 5.0`, 'Pontuação']}
-                    labelFormatter={(label) => `Sessão: ${label}`}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey={selectedValenceForEvolution} 
-                    stroke="#8b5cf6" 
-                    strokeWidth={3}
-                    dot={{ fill: '#8b5cf6', r: 6 }}
-                    activeDot={{ r: 8 }}
-                  />
+                                />
+                                <Legend />
+                  {playerStats.map((stat, index) => {
+                    const colors = ['#3b82f6', '#ef4444', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899', '#06b6d4', '#f97316'];
+                    return (
+                      <Line
+                        key={stat.valence_id}
+                        type="monotone"
+                        dataKey={stat.valence_id}
+                        name={stat.valence_name}
+                        stroke={colors[index % colors.length]}
+                        strokeWidth={2}
+                        dot={{ r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    );
+                  })}
                 </LineChart>
-              </ResponsiveContainer>
-            </div>
+                        </ResponsiveContainer>
+                    </div>
 
-            {/* Evolution Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                  </div>
-                  <h3 className="font-semibold text-slate-700">Melhor Pontuação</h3>
-                </div>
-                <div className="text-3xl font-bold text-slate-900">
-                  {(() => {
-                    const scores = filteredEvolutionData
-                      .filter(d => d[selectedValenceForEvolution] !== undefined && d[selectedValenceForEvolution] > 0)
-                      .map(d => Number(d[selectedValenceForEvolution]));
-                    return scores.length > 0 ? Math.max(...scores).toFixed(1) : '0.0';
-                  })()}
-                </div>
-                <p className="text-sm text-slate-500 mt-1">Pontuação máxima alcançada</p>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <BarChart className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold text-slate-700">Média Total</h3>
-                </div>
-                <div className="text-3xl font-bold text-slate-900">
-                  {(() => {
-                    const scores = filteredEvolutionData
-                      .filter(d => d[selectedValenceForEvolution] !== undefined && d[selectedValenceForEvolution] > 0)
-                      .map(d => Number(d[selectedValenceForEvolution]));
-                    return scores.length > 0 
-                      ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1)
-                      : '0.0';
-                  })()}
-                </div>
-                <p className="text-sm text-slate-500 mt-1">Média em todas as sessões</p>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Activity className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <h3 className="font-semibold text-slate-700">Progresso</h3>
-                </div>
-                <div className="text-3xl font-bold text-slate-900">
-                  {(() => {
-                    const scores = filteredEvolutionData
-                      .filter(d => d[selectedValenceForEvolution] !== undefined)
-                      .map(d => Number(d[selectedValenceForEvolution]) || 0);
-                    if (scores.length < 2) return '0.0';
-                    const first = scores[0];
-                    const last = scores[scores.length - 1];
-                    const diff = last - first;
-                    return diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
-                  })()}
-                </div>
-                <p className="text-sm text-slate-500 mt-1">Primeira vs Última sessão</p>
+            {/* Individual Criteria Stats */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Estatísticas por Critério</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {playerStats.map((stat, index) => {
+                  const colors = [
+                    { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', hex: '#3b82f6' },
+                    { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', hex: '#ef4444' },
+                    { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', hex: '#8b5cf6' },
+                    { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', hex: '#f59e0b' },
+                    { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', hex: '#10b981' },
+                    { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200', hex: '#ec4899' },
+                    { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', hex: '#06b6d4' },
+                    { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', hex: '#f97316' },
+                  ];
+                  const color = colors[index % colors.length];
+                  
+                  const statData = filteredEvolutionData
+                    .filter(d => d[stat.valence_id] !== undefined && d[stat.valence_id] > 0)
+                    .map(d => Number(d[stat.valence_id]));
+                  
+                  const maxScore = statData.length > 0 ? Math.max(...statData) : 0;
+                  const avgScore = statData.length > 0 
+                    ? statData.reduce((a, b) => a + b, 0) / statData.length 
+                    : 0;
+                  
+                  const firstScore = statData.length > 0 ? statData[0] : 0;
+                  const lastScore = statData.length > 0 ? statData[statData.length - 1] : 0;
+                  const progress = lastScore - firstScore;
+                  
+                  return (
+                    <div key={stat.valence_id} className={`p-4 rounded-lg border-2 ${color.border} ${color.bg}`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color.hex }}></div>
+                        <div className={`text-sm font-semibold ${color.text}`}>{stat.valence_name}</div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <div className="text-slate-500 text-xs">Melhor</div>
+                          <div className={`text-lg font-bold ${color.text}`}>{maxScore.toFixed(1)}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 text-xs">Média</div>
+                          <div className={`text-lg font-bold ${color.text}`}>{avgScore.toFixed(1)}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 text-xs">Progresso</div>
+                          <div className={`text-lg font-bold ${color.text}`}>
+                            {progress > 0 ? `+${progress.toFixed(1)}` : progress === 0 ? '0.0' : progress.toFixed(1)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </>
