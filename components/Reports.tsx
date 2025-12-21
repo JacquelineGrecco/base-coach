@@ -1437,9 +1437,13 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
             <h3 className="font-semibold text-slate-700">Média Geral</h3>
           </div>
           <div className="text-3xl font-bold text-slate-900">
-            {playerStats.length > 0 && playerStats.reduce((sum, stat) => sum + stat.average, 0) > 0
-              ? (playerStats.reduce((sum, stat) => sum + stat.average, 0) / playerStats.length).toFixed(1)
-              : '0.0'}
+            {(() => {
+              if (playerStats.length === 0) return '0.0';
+              const validStats = playerStats.filter(stat => stat.average > 0);
+              if (validStats.length === 0) return '0.0';
+              const sum = validStats.reduce((acc, stat) => acc + stat.average, 0);
+              return (sum / validStats.length).toFixed(1);
+            })()}
           </div>
           <p className="text-sm text-slate-500 mt-1">Pontuação de 0-5</p>
         </div>
@@ -1452,14 +1456,22 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
             <h3 className="font-semibold text-slate-700">Melhor Habilidade</h3>
           </div>
           <div className="text-xl font-bold text-slate-900">
-            {playerStats.length > 0
-              ? playerStats.reduce((max, stat) => stat.average > max.average ? stat : max).valence_name
-              : 'N/A'}
+            {(() => {
+              if (playerStats.length === 0) return 'N/A';
+              const validStats = playerStats.filter(stat => stat.average > 0);
+              if (validStats.length === 0) return 'N/A';
+              const best = validStats.reduce((max, stat) => stat.average > max.average ? stat : max);
+              return best.valence_name;
+            })()}
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            {playerStats.length > 0
-              ? `${playerStats.reduce((max, stat) => stat.average > max.average ? stat : max).average.toFixed(1)}/5.0`
-              : ''}
+            {(() => {
+              if (playerStats.length === 0) return '';
+              const validStats = playerStats.filter(stat => stat.average > 0);
+              if (validStats.length === 0) return '';
+              const best = validStats.reduce((max, stat) => stat.average > max.average ? stat : max);
+              return `${best.average.toFixed(1)}/5.0`;
+            })()}
           </p>
         </div>
       </div>
@@ -1875,12 +1887,12 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                   <h3 className="font-semibold text-slate-700">Melhor Pontuação</h3>
                 </div>
                 <div className="text-3xl font-bold text-slate-900">
-                  {filteredEvolutionData.length > 0
-                    ? Math.max(...filteredEvolutionData
-                        .filter(d => d[selectedValenceForEvolution] !== undefined)
-                        .map(d => Number(d[selectedValenceForEvolution]) || 0)
-                      ).toFixed(1)
-                    : '0.0'}
+                  {(() => {
+                    const scores = filteredEvolutionData
+                      .filter(d => d[selectedValenceForEvolution] !== undefined && d[selectedValenceForEvolution] > 0)
+                      .map(d => Number(d[selectedValenceForEvolution]));
+                    return scores.length > 0 ? Math.max(...scores).toFixed(1) : '0.0';
+                  })()}
                 </div>
                 <p className="text-sm text-slate-500 mt-1">Pontuação máxima alcançada</p>
               </div>
@@ -1893,13 +1905,14 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                   <h3 className="font-semibold text-slate-700">Média Total</h3>
                 </div>
                 <div className="text-3xl font-bold text-slate-900">
-                  {filteredEvolutionData.length > 0
-                    ? (filteredEvolutionData
-                        .filter(d => d[selectedValenceForEvolution] !== undefined)
-                        .reduce((sum, d) => sum + (Number(d[selectedValenceForEvolution]) || 0), 0) / 
-                        filteredEvolutionData.filter(d => d[selectedValenceForEvolution] !== undefined).length
-                      ).toFixed(1)
-                    : '0.0'}
+                  {(() => {
+                    const scores = filteredEvolutionData
+                      .filter(d => d[selectedValenceForEvolution] !== undefined && d[selectedValenceForEvolution] > 0)
+                      .map(d => Number(d[selectedValenceForEvolution]));
+                    return scores.length > 0 
+                      ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1)
+                      : '0.0';
+                  })()}
                 </div>
                 <p className="text-sm text-slate-500 mt-1">Média em todas as sessões</p>
               </div>
