@@ -45,7 +45,7 @@ CREATE POLICY "Users can view own session attendance"
       SELECT 1 FROM sessions s
       JOIN teams t ON s.team_id = t.id
       WHERE s.id = session_attendance.session_id
-        AND t.coach_id = auth.uid()
+        AND t.user_id = auth.uid()
     )
   );
 
@@ -57,7 +57,7 @@ CREATE POLICY "Users can insert own session attendance"
       SELECT 1 FROM sessions s
       JOIN teams t ON s.team_id = t.id
       WHERE s.id = session_attendance.session_id
-        AND t.coach_id = auth.uid()
+        AND t.user_id = auth.uid()
     )
   );
 
@@ -69,7 +69,7 @@ CREATE POLICY "Users can update own session attendance"
       SELECT 1 FROM sessions s
       JOIN teams t ON s.team_id = t.id
       WHERE s.id = session_attendance.session_id
-        AND t.coach_id = auth.uid()
+        AND t.user_id = auth.uid()
     )
   );
 
@@ -81,7 +81,7 @@ CREATE POLICY "Users can delete own session attendance"
       SELECT 1 FROM sessions s
       JOIN teams t ON s.team_id = t.id
       WHERE s.id = session_attendance.session_id
-        AND t.coach_id = auth.uid()
+        AND t.user_id = auth.uid()
     )
   );
 

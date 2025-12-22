@@ -160,7 +160,7 @@ BEGIN
   -- Get user's subscription tier and status
   SELECT subscription_tier, subscription_status INTO user_tier, user_status
   FROM users
-  WHERE id = NEW.coach_id;
+  WHERE id = NEW.user_id;
   
   -- Check if subscription is active
   IF user_status NOT IN ('active', 'trialing') THEN
@@ -173,7 +173,7 @@ BEGIN
   -- Count active teams
   SELECT COUNT(*) INTO team_count
   FROM teams
-  WHERE coach_id = NEW.coach_id
+  WHERE user_id = NEW.user_id
     AND is_active = true
     AND archived_at IS NULL;
   
@@ -212,7 +212,7 @@ BEGIN
   -- Get user's subscription tier via team
   SELECT u.subscription_tier, u.subscription_status INTO user_tier, user_status
   FROM users u
-  JOIN teams t ON t.coach_id = u.id
+  JOIN teams t ON t.user_id = u.id
   WHERE t.id = NEW.team_id;
   
   -- Check if subscription is active
