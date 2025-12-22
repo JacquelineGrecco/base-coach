@@ -198,41 +198,6 @@ export default function PricingPage() {
     }
   }
 
-  const colorClasses = {
-    slate: {
-      bg: 'bg-slate-50',
-      border: 'border-slate-200',
-      text: 'text-slate-700',
-      badge: 'bg-slate-100 text-slate-700',
-      button: 'bg-slate-600 hover:bg-slate-700 text-white',
-      icon: 'text-slate-600'
-    },
-    blue: {
-      bg: 'bg-blue-50',
-      border: 'border-blue-500',
-      text: 'text-blue-700',
-      badge: 'bg-blue-100 text-blue-700',
-      button: 'bg-blue-600 hover:bg-blue-700 text-white',
-      icon: 'text-blue-600'
-    },
-    purple: {
-      bg: 'bg-purple-50',
-      border: 'border-purple-200',
-      text: 'text-purple-700',
-      badge: 'bg-purple-100 text-purple-700',
-      button: 'bg-purple-600 hover:bg-purple-700 text-white',
-      icon: 'text-purple-600'
-    },
-    emerald: {
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-200',
-      text: 'text-emerald-700',
-      badge: 'bg-emerald-100 text-emerald-700',
-      button: 'bg-emerald-600 hover:bg-emerald-700 text-white',
-      icon: 'text-emerald-600'
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
       {/* Trial Modal */}
