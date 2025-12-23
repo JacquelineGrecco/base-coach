@@ -6,6 +6,7 @@ import { ChevronRight, AlertCircle, CheckCircle2, Users, Folder, UserCheck, User
 import { teamService, Team } from '@/features/roster/services/teamService';
 import { categoryService } from '@/features/roster/services/categoryService';
 import { supabase } from '@/lib/supabase';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface SessionSetupProps {
   onStartSession: (sessionData: {
@@ -171,9 +172,10 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
         return;
       }
 
-      setPlayers(data || []);
+      const playersData = (data || []) as Player[];
+      setPlayers(playersData);
       // Auto-select all players by default
-      setSelectedPlayerIds((data || []).map(p => p.id));
+      setSelectedPlayerIds(playersData.map(p => p.id));
     } catch (error: any) {
       console.error('Error loading players:', error);
       setPlayers([]);
