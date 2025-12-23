@@ -50,7 +50,7 @@ const Profile: React.FC = () => {
   // Phone validation
   const [phoneError, setPhoneError] = useState('');
 
-  // Format phone number as user types (international format)
+  // Format phone number as user types (Brazilian format)
   const formatPhoneNumber = (value: string) => {
     // Remove all non-digits
     const phoneNumber = value.replace(/\D/g, '');
@@ -58,15 +58,20 @@ const Profile: React.FC = () => {
     // Don't format if empty
     if (!phoneNumber) return '';
     
-    // Format as: +XX (XXX) XXX-XXXX
+    // Brazilian format: +55 (XX) 9XXXX-XXXX (mobile) or +55 (XX) XXXX-XXXX (landline)
+    // Total: 13 digits for mobile, 12 for landline
     if (phoneNumber.length <= 2) {
       return `+${phoneNumber}`;
-    } else if (phoneNumber.length <= 5) {
+    } else if (phoneNumber.length <= 4) {
       return `+${phoneNumber.slice(0, 2)} (${phoneNumber.slice(2)}`;
-    } else if (phoneNumber.length <= 8) {
-      return `+${phoneNumber.slice(0, 2)} (${phoneNumber.slice(2, 5)}) ${phoneNumber.slice(5)}`;
+    } else if (phoneNumber.length <= 9) {
+      return `+${phoneNumber.slice(0, 2)} (${phoneNumber.slice(2, 4)}) ${phoneNumber.slice(4)}`;
+    } else if (phoneNumber.length <= 13) {
+      // Mobile: +55 (11) 98419-9058
+      return `+${phoneNumber.slice(0, 2)} (${phoneNumber.slice(2, 4)}) ${phoneNumber.slice(4, 9)}-${phoneNumber.slice(9, 13)}`;
     } else {
-      return `+${phoneNumber.slice(0, 2)} (${phoneNumber.slice(2, 5)}) ${phoneNumber.slice(5, 8)}-${phoneNumber.slice(8, 12)}`;
+      // Limit to 13 digits
+      return `+${phoneNumber.slice(0, 2)} (${phoneNumber.slice(2, 4)}) ${phoneNumber.slice(4, 9)}-${phoneNumber.slice(9, 13)}`;
     }
   };
 
@@ -74,9 +79,15 @@ const Profile: React.FC = () => {
     // Remove all non-digits
     const digitsOnly = value.replace(/\D/g, '');
     
-    // Must have at least 10 digits (country code + number)
-    if (digitsOnly.length < 10) {
-      setPhoneError('Telefone deve ter no mínimo 10 dígitos');
+    // Brazilian phone: 12 digits (landline) or 13 digits (mobile)
+    // Format: +55 (XX) XXXX-XXXX or +55 (XX) 9XXXX-XXXX
+    if (digitsOnly.length < 12) {
+      setPhoneError('Telefone inválido. Use o formato: +55 (XX) XXXXX-XXXX');
+      return false;
+    }
+    
+    if (digitsOnly.length > 13) {
+      setPhoneError('Telefone tem dígitos demais');
       return false;
     }
     
