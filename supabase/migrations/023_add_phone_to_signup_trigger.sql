@@ -48,3 +48,4 @@ COMMENT ON FUNCTION public.ensure_profile_exists() IS 'Ensures user profile exis
 
 
 
+

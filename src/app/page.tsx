@@ -20,6 +20,7 @@ import { ViewState, Evaluation } from '@/types';
 import { sessionService } from '@/features/match/services/sessionService';
 import { subscriptionService, SubscriptionInfo } from '@/features/auth/services/subscriptionService';
 import { supabase } from '@/lib/supabase';
+import { setupAutoRefresh } from '@/lib/sessionRefresh';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -43,6 +44,15 @@ export default function Home() {
       setIsRecoveryMode(true);
     }
   }, []);
+
+  // Setup automatic session refresh when user is logged in
+  useEffect(() => {
+    if (user) {
+      console.log('Setting up auto-refresh for user:', user.id);
+      const cleanup = setupAutoRefresh();
+      return cleanup;
+    }
+  }, [user]);
 
   // Load subscription and check for trial expiration warnings
   useEffect(() => {

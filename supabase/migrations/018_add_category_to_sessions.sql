@@ -18,3 +18,4 @@ COMMENT ON COLUMN sessions.category_id IS 'Optional category filter for the sess
 
 
 
+

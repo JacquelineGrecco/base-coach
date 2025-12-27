@@ -30,6 +30,13 @@ export const supabase = createClient<Database>(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      storageKey: 'base-coach-auth',
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'base-coach-web',
+      },
     },
   }
 );

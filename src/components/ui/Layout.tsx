@@ -122,10 +122,8 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
         <nav className="flex-1 p-4 space-y-2">
             <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
             <NavItem view="TEAMS" icon={Users} label="Times" />
-            <NavItem view="SESSION_SETUP" icon={PlayCircle} label="Sessão ao Vivo" />
             <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
             <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
-            <NavItem view="PROFILE" icon={User} label="Perfil" />
         </nav>
 
         {/* Bottom Section - Account & Support */}
@@ -133,6 +131,7 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
             <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Conta e Suporte
             </div>
+            <NavItem view="PROFILE" icon={User} label="Perfil" />
             <NavItem view="PRICING" icon={CreditCard} label="Planos" />
             <button 
               onClick={handleContactSupport}
@@ -191,16 +190,15 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
                 {/* Primary Navigation */}
                 <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
                 <NavItem view="TEAMS" icon={Users} label="Times" />
-                <NavItem view="SESSION_SETUP" icon={PlayCircle} label="Sessão ao Vivo" />
                 <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
                 <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
-                <NavItem view="PROFILE" icon={User} label="Perfil" />
                 
                 {/* Bottom Section - Account & Support */}
                 <div className="pt-4 mt-auto space-y-2 border-t-2 border-slate-700">
                   <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Conta e Suporte
                   </div>
+                  <NavItem view="PROFILE" icon={User} label="Perfil" />
                   <NavItem view="PRICING" icon={CreditCard} label="Planos" />
                   <button 
                     onClick={handleContactSupport}

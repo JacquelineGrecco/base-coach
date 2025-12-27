@@ -27,7 +27,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkUser();
 
     // Subscribe to auth changes
-    const { data: { subscription } } = authService.onAuthStateChange(async (authUser) => {
+    const { data: { subscription } } = authService.onAuthStateChange(async (authUser, event) => {
+      console.log('Auth state change:', event, authUser?.id);
+      
+      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed successfully');
+      }
+
       if (authUser) {
         // Verify that the user has a profile
         await validateUserProfile(authUser);
@@ -47,10 +59,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { user: authUser } = await authService.getCurrentUser();
       if (authUser) {
         await validateUserProfile(authUser);
+      } else {
+        // No user, check if we had a session that expired
+        const { session } = await authService.getSession();
+        if (!session) {
+          console.log('No active session found');
+        }
+        setLoading(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking user:', error);
-    } finally {
+      
+      // If it's an auth session error, clear and reset
+      if (error?.message?.includes('session') || error?.message?.includes('Auth')) {
+        console.warn('Session error detected, clearing auth state');
+        await authService.signOut();
+        setUser(null);
+      }
+      
       setLoading(false);
     }
   }

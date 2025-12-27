@@ -23,3 +23,4 @@ COMMENT ON COLUMN users.plan_type IS 'User subscription plan: free, basic, or pr
 
 
 
+

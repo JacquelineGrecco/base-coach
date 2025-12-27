@@ -88,10 +88,23 @@ export const authService = {
    */
   async getCurrentUser(): Promise<{ user: User | null; error: Error | null }> {
     try {
+      // First check if there's a session
+      const { session } = await this.getSession();
+      if (!session) {
+        // No session, return null user without error
+        return { user: null, error: null };
+      }
+
+      // Session exists, get the user
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error) throw error;
       return { user, error: null };
-    } catch (error) {
+    } catch (error: any) {
+      // Only log non-session-related errors
+      if (error?.message?.includes('session') || error?.message?.includes('Auth session')) {
+        // Session missing is not an error, just return null
+        return { user: null, error: null };
+      }
       console.error('Get current user error:', error);
       return { user: null, error: error as Error };
     }
@@ -172,9 +185,9 @@ export const authService = {
   /**
    * Subscribe to auth state changes
    */
-  onAuthStateChange(callback: (user: User | null) => void) {
-    return supabase.auth.onAuthStateChange((_event, session) => {
-      callback(session?.user ?? null);
+  onAuthStateChange(callback: (user: User | null, event?: string) => void) {
+    return supabase.auth.onAuthStateChange((event, session) => {
+      callback(session?.user ?? null, event);
     });
   },
 };

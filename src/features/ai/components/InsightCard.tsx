@@ -74,3 +74,4 @@ export const InsightCard: React.FC<InsightCardProps> = ({ type, title, items }) 
   );
 };
 
+

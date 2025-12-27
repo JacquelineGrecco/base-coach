@@ -167,6 +167,12 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
     setError('');
 
     try {
+      // First check if we have a valid session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Sessão expirada. Por favor, faça login novamente.');
+      }
+
       const { teams: teamsData, error: teamsError } = await teamService.getTeams();
 
       if (teamsError) throw teamsError;
@@ -179,7 +185,13 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
       }
     } catch (err: any) {
       console.error('Error loading teams:', err);
-      setError('Erro ao carregar times: ' + err.message);
+      
+      // Check if it's an auth error
+      if (err.message?.includes('session') || err.message?.includes('Auth') || err.status === 401) {
+        setError('Sua sessão expirou. Por favor, recarregue a página e faça login novamente.');
+      } else {
+        setError('Erro ao carregar times: ' + (err.message || 'Erro desconhecido'));
+      }
     } finally {
       setLoading(false);
     }
@@ -190,6 +202,12 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
     setError('');
 
     try {
+      // First check if we have a valid session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Sessão expirada. Por favor, faça login novamente.');
+      }
+
       const { data, error: playersError } = await supabase
         .from('players')
         .select('id, name, jersey_number, position, team_id')
@@ -197,7 +215,15 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
         .is('archived_at', null)
         .order('name');
 
-      if (playersError) throw playersError;
+      if (playersError) {
+        console.error('Supabase players error:', {
+          message: playersError.message,
+          code: playersError.code,
+          details: playersError.details,
+          hint: playersError.hint,
+        });
+        throw playersError;
+      }
 
       const players = (data as Player[]) || [];
       setPlayers(players);
@@ -206,7 +232,13 @@ const Reports: React.FC<ReportsProps> = ({ preselectedTeamId, preselectedPlayerI
       // Don't auto-select here to avoid conflicts
     } catch (err: any) {
       console.error('Error loading players:', err);
-      setError('Erro ao carregar atletas: ' + err.message);
+      
+      // Check if it's an auth error
+      if (err.message?.includes('session') || err.message?.includes('Auth') || err.status === 401) {
+        setError('Sua sessão expirou. Por favor, recarregue a página e faça login novamente.');
+      } else {
+        setError('Erro ao carregar atletas: ' + (err.message || 'Erro desconhecido'));
+      }
     } finally {
       setLoading(false);
     }

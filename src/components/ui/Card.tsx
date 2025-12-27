@@ -61,3 +61,4 @@ export const CardFooter: React.FC<{ children: React.ReactNode; className?: strin
   return <div className={`p-6 border-t border-slate-200 bg-slate-50 rounded-b-xl ${className}`}>{children}</div>;
 };
 
+

@@ -220,14 +220,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
                 <p className="text-slate-600 mt-1">
                   {sessions.length > 0 
                     ? `Você tem ${sessions.length} sessões recentes com ${activeTeam.name}.`
-                    : 'Pronto para iniciar uma nova sessão de treino?'
+                    : 'Pronto para iniciar um novo treino?'
                   }
                 </p>
             </div>
             <div className="flex gap-3">
                 <button
                     onClick={onNavigateToTeams || (() => window.location.hash = '#teams')}
-                    className="flex items-center gap-2 px-5 py-3 h-12 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 active:scale-95 font-medium"
+                    className="flex items-center gap-2 px-6 py-3 h-12 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 active:scale-95 font-semibold"
                     title="Gerenciar times, categorias e atletas"
                 >
                     <Folder className="w-5 h-5" />
@@ -236,15 +236,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
                 <button
                     onClick={onStartSession}
                     disabled={players.length === 0}
-                    className={`flex items-center gap-2 px-8 py-3 h-14 rounded-xl font-bold text-lg transition-all duration-200 active:scale-95 ${
+                    className={`flex items-center gap-2 px-6 py-3 h-12 rounded-xl font-semibold transition-all duration-200 active:scale-95 ${
                       players.length === 0
                         ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                         : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300'
                     }`}
-                    title={players.length === 0 ? 'Adicione atletas ao time primeiro' : 'Iniciar nova sessão'}
+                    title={players.length === 0 ? 'Adicione atletas ao time primeiro' : 'Iniciar novo treino'}
                 >
-                    Iniciar Nova Sessão
-                    <ArrowRight className="w-6 h-6" />
+                    Iniciar Novo Treino
+                    <ArrowRight className="w-5 h-5" />
                 </button>
             </div>
         </div>

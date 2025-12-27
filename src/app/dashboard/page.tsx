@@ -200,9 +200,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartSession, onNavigateToTeams
                 onClick={onStartSession}
                     disabled={players.length === 0}
                     className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all transform hover:scale-105 flex items-center font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={players.length === 0 ? 'Adicione atletas ao time primeiro' : 'Iniciar nova sessão'}
+                    title={players.length === 0 ? 'Adicione atletas ao time primeiro' : 'Iniciar novo treino'}
             >
-                    Iniciar Nova Sessão
+                    Iniciar Novo Treino
                 <ArrowRight className="w-5 h-5 ml-2" />
             </button>
             </div>

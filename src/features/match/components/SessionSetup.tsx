@@ -61,66 +61,102 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
 
   async function loadTeams() {
     setLoading(true);
-    const { teams: teamsData, error: teamsError } = await teamService.getTeams();
+    
+    try {
+      // Check session before making the query
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('Sessão expirada. Por favor, recarregue a página.');
+        setLoading(false);
+        return;
+      }
 
-    if (teamsError) {
-      setError('Erro ao carregar times: ' + teamsError.message);
+      const { teams: teamsData, error: teamsError } = await teamService.getTeams();
+
+      if (teamsError) {
+        console.error('Error loading teams:', teamsError);
+        
+        // Check if it's an auth error
+        if (teamsError.message?.includes('session') || teamsError.message?.includes('JWT')) {
+          setError('Sessão expirada. Por favor, recarregue a página e faça login novamente.');
+        } else {
+          setError('Erro ao carregar times: ' + teamsError.message);
+        }
+        setLoading(false);
+        return;
+      }
+
+      setTeams(teamsData || []);
+      
+      // Auto-select first team
+      if (teamsData && teamsData.length > 0) {
+        setSelectedTeamId(teamsData[0].id);
+      } else {
+        setError('Nenhum time encontrado. Crie um time primeiro.');
+      }
+    } catch (error: any) {
+      console.error('Error in loadTeams:', error);
+      setError('Erro ao carregar times. Tente novamente.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setTeams(teamsData || []);
-    
-    // Auto-select first team
-    if (teamsData && teamsData.length > 0) {
-      setSelectedTeamId(teamsData[0].id);
-    } else {
-      setError('Nenhum time encontrado. Crie um time primeiro.');
-    }
-    
-    setLoading(false);
   }
 
   async function loadCategories(teamId: string) {
-    const { categories: categoriesData } = await categoryService.getCategoriesByTeam(teamId);
-    
-    // Load player count for total team and no-category players
-    const { count: totalCount } = await supabase
-      .from('players')
-      .select('*', { count: 'exact', head: true })
-      .eq('team_id', teamId)
-      .eq('is_active', true);
-    
-    const { count: noCatCount } = await supabase
-      .from('players')
-      .select('*', { count: 'exact', head: true })
-      .eq('team_id', teamId)
-      .is('category_id', null)
-      .eq('is_active', true);
-    
-    setTotalTeamPlayerCount(totalCount || 0);
-    setNoCategoryPlayerCount(noCatCount || 0);
-    
-    // Load player count for each category
-    if (categoriesData && categoriesData.length > 0) {
-      const categoriesWithCount = await Promise.all(
-        categoriesData.map(async (category) => {
-          const { count } = await supabase
-            .from('players')
-            .select('*', { count: 'exact', head: true })
-            .eq('team_id', teamId)
-            .eq('category_id', category.id)
-            .eq('is_active', true);
-          
-          return { ...category, player_count: count || 0 };
-        })
-      );
+    try {
+      // Check session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No active session when loading categories');
+        return;
+      }
+
+      const { categories: categoriesData } = await categoryService.getCategoriesByTeam(teamId);
       
-      // Only show categories that have players
-      const nonEmptyCategories = categoriesWithCount.filter(cat => (cat.player_count || 0) > 0);
-      setCategories(nonEmptyCategories);
-    } else {
-      setCategories([]);
+      // Load player count for total team and no-category players
+      const { count: totalCount } = await supabase
+        .from('players')
+        .select('*', { count: 'exact', head: true })
+        .eq('team_id', teamId)
+        .eq('is_active', true);
+      
+      const { count: noCatCount } = await supabase
+        .from('players')
+        .select('*', { count: 'exact', head: true })
+        .eq('team_id', teamId)
+        .is('category_id', null)
+        .eq('is_active', true);
+      
+      setTotalTeamPlayerCount(totalCount || 0);
+      setNoCategoryPlayerCount(noCatCount || 0);
+      
+      // Load player count for each category
+      if (categoriesData && categoriesData.length > 0) {
+        const categoriesWithCount = await Promise.all(
+          categoriesData.map(async (category) => {
+            const { count } = await supabase
+              .from('players')
+              .select('*', { count: 'exact', head: true })
+              .eq('team_id', teamId)
+              .eq('category_id', category.id)
+              .eq('is_active', true);
+            
+            return { ...category, player_count: count || 0 };
+          })
+        );
+        
+        // Only show categories that have players
+        const nonEmptyCategories = categoriesWithCount.filter(cat => (cat.player_count || 0) > 0);
+        setCategories(nonEmptyCategories);
+      } else {
+        setCategories([]);
+      }
+    } catch (error: any) {
+      console.error('Error loading categories:', error);
+      
+      if (error.message?.includes('session') || error.message?.includes('JWT')) {
+        setError('Sessão expirada. Por favor, recarregue a página.');
+      }
     }
   }
 
@@ -151,6 +187,15 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
 
   async function loadPlayers(teamId: string, categoryId: string | null) {
     try {
+      // Check session before making the query
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No active session when loading players');
+        setError('Sessão expirada. Por favor, recarregue a página.');
+        setPlayers([]);
+        return;
+      }
+
       let query = supabase
         .from('players')
         .select('id, name, jersey_number, position')
@@ -167,7 +212,19 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
       const { data, error } = await query;
       
       if (error) {
-        console.error('Error loading players:', error);
+        console.error('Error loading players:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        
+        // Check if it's an auth error
+        if (error.message?.includes('session') || error.message?.includes('JWT') || error.code === 'PGRST301') {
+          setError('Sessão expirada. Por favor, recarregue a página e faça login novamente.');
+        } else {
+          setError('Erro ao carregar atletas. Tente novamente.');
+        }
         setPlayers([]);
         return;
       }
@@ -178,6 +235,13 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
       setSelectedPlayerIds(playersData.map(p => p.id));
     } catch (error: any) {
       console.error('Error loading players:', error);
+      
+      // Better error message for users
+      if (error.message?.includes('session') || error.message?.includes('Auth')) {
+        setError('Sessão expirada. Por favor, recarregue a página.');
+      } else {
+        setError('Erro ao carregar atletas. Tente novamente.');
+      }
       setPlayers([]);
     }
   }
@@ -561,7 +625,7 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
               ''
             }
           >
-            Iniciar Sessão
+            Iniciar Treino
             <ChevronRight className="w-5 h-5 ml-2" />
           </button>
         </div>

@@ -7,3 +7,4 @@ export * from './geminiClient';
 export { apiClient } from './supabaseClient';
 export { geminiClient } from './geminiClient';
 
+
