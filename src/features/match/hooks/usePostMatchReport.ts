@@ -36,8 +36,19 @@ export function usePostMatchReport() {
 
     try {
       const prompt = aiPrompts.postMatchReport(sessionData);
-      const response = await geminiClient.generateText(prompt);
-      setReport(response);
+      const { data, error } = await geminiClient.generateContent<string>(prompt);
+      
+      if (error) {
+        setError(error.message || 'Erro ao gerar relatório');
+        return;
+      }
+      
+      if (!data) {
+        setError('Nenhuma resposta recebida da IA');
+        return;
+      }
+      
+      setReport(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao gerar relatório';
       setError(errorMessage);
