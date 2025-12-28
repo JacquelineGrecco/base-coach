@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Evaluation } from '@/types';
 import { VALENCES } from '@/lib/constants';
-import { ChevronLeft, ChevronRight, Save, AlertCircle, FileText } from 'lucide-react';
+import { Save, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useMatchTimer, useEvaluationManager, useSwipeGesture } from '@/features/match/hooks';
+import { useMatchTimer, useEvaluationManager } from '@/features/match/hooks';
 import { useSubstitutions } from '@/features/match/hooks/useSubstitutions';
 import { MatchClock } from './MatchClock';
 import { SubstitutionManager } from './SubstitutionManager';
@@ -130,28 +130,9 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
 
   // Filter valences to show only selected ones
   const activeValences = VALENCES.filter(v => selectedValenceIds.includes(v.id));
-  
-  // Setup swipe gestures for player navigation
-  const swipeHandlers = useSwipeGesture(
-    evaluationManager.nextPlayer,
-    evaluationManager.previousPlayer
-  );
 
-  const currentPlayer = evaluationManager.currentPlayer;
-  const currentEvaluation = evaluationManager.getPlayerEvaluation(currentPlayer?.id || '');
-
-  // Debug logging
-  console.log('ActiveSession - Render check:', {
-    loading,
-    playersCount: players.length,
-    currentPlayer: currentPlayer?.name || 'null',
-    currentPlayerIndex: evaluationManager.currentPlayerIndex,
-    hasEvaluation: !!currentEvaluation,
-  });
-
-  const handleScore = (valenceId: string, score: number) => {
-    if (!currentPlayer) return;
-    evaluationManager.setScore(currentPlayer.id, valenceId, score);
+  const handleScore = (playerId: string, valenceId: string, score: number) => {
+    evaluationManager.setScore(playerId, valenceId, score);
   };
 
   // Sideline Actions Handlers
@@ -294,44 +275,12 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
     );
   }
 
-  // Render logic - currentPlayer should exist at this point
-  // Note: currentEvaluation can be null at the start (no scores yet)
-  if (!currentPlayer) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-red-50 to-red-100">
-        <div className="text-center max-w-md mx-auto p-6">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-slate-900 mb-2">Erro ao carregar atletas</h3>
-          <p className="text-slate-600 mb-4">
-            Não foi possível carregar as informações dos atletas.
-          </p>
-          <div className="space-y-2">
-            <button
-              onClick={onCancel}
-              className="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Voltar ao Dashboard
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
-            >
-              Recarregar Página
-            </button>
-          </div>
-          <p className="text-xs text-slate-500 mt-4">
-            Debug: {players.length} atleta(s) carregado(s), mas currentPlayer é null
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Top Bar: Clock & Controls */}
+      {/* Top Bar: Compact Header with Clock & Controls */}
       <div className="bg-white border-b-2 border-slate-200 shadow-lg">
-        <div className="max-w-4xl mx-auto p-4">
+        <div className="max-w-7xl mx-auto p-4">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-lg font-bold text-slate-900">Sessão ao Vivo</h2>
             <div className="flex gap-2">
@@ -351,88 +300,51 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
             </div>
           </div>
           
-          {/* Match Clock - Centered */}
-          <MatchClock
-            duration={timer.duration}
-            isPaused={timer.isPaused}
-            formattedTime={timer.formattedTime}
-            onToggle={timer.toggle}
-          />
+          {/* Compact Match Clock */}
+          <div className="max-w-md">
+            <MatchClock
+              duration={timer.duration}
+              isPaused={timer.isPaused}
+              formattedTime={timer.formattedTime}
+              onToggle={timer.toggle}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Main Evaluation Area - Full Focus */}
-      <div className="flex-1 overflow-y-auto" {...swipeHandlers}>
-        <div className="max-w-4xl mx-auto p-6">
+      {/* Main Evaluation Area - Valences First, Then All Players */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto p-6">
           
-          {/* Player Card - Prominent */}
-          <div className="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-8 mb-6">
-            
-            {/* Player Navigation */}
-            <div className="flex items-center justify-between mb-8">
-              <button 
-                onClick={evaluationManager.previousPlayer}
-                disabled={evaluationManager.currentPlayerIndex === 0}
-                className="h-14 w-14 rounded-full hover:bg-slate-100 disabled:opacity-20 flex items-center justify-center transition-all active:scale-95 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-10 h-10 text-slate-700" />
-              </button>
+          {/* Progress Bar - Overall Progress */}
+          <div className="bg-white rounded-xl shadow-lg border-2 border-slate-200 p-4 mb-6">
+            <div className="flex justify-between text-sm text-slate-600 mb-2">
+              <span className="font-semibold">Progresso Geral</span>
+              <span className="font-bold text-blue-600">{evaluationManager.progress}%</span>
+            </div>
+            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${evaluationManager.progress}%` }}
+              ></div>
+            </div>
+            <div className="text-xs text-slate-500 mt-2">
+              {evaluationManager.evaluatedCount} de {players.length} atletas avaliados
+            </div>
+          </div>
 
-              {/* Current Player Display */}
-              <div className="flex flex-col items-center text-center flex-1">
-                <div className="relative mb-4">
-                  <div className="w-24 h-24 rounded-full border-4 border-blue-500 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shadow-lg">
-                    <span className="text-blue-700 font-bold text-3xl">
-                      {currentPlayer.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                    </span>
-                  </div>
-                  {currentPlayer.jersey_number && (
-                    <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white text-sm font-bold px-3 py-1 rounded-full shadow-lg">
-                      #{currentPlayer.jersey_number}
+          {/* Valences - Each valence shows all players */}
+          <div className="space-y-6">
+            {activeValences.map((valence) => {
+              return (
+                <div key={valence.id} className="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-6">
+                  {/* Valence Header */}
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="font-bold text-2xl text-slate-900 mb-1">{valence.name}</h3>
+                      <p className="text-sm text-slate-500">Avalie todos os atletas para esta valência</p>
                     </div>
-                  )}
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-1">{currentPlayer.name}</h2>
-                {currentPlayer.position && (
-                  <p className="text-base text-slate-500 mb-2">{currentPlayer.position}</p>
-                )}
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <span className="font-semibold">{evaluationManager.currentPlayerIndex + 1}</span>
-                  <span>/</span>
-                  <span>{players.length}</span>
-                </div>
-              </div>
-
-              <button 
-                onClick={evaluationManager.nextPlayer}
-                disabled={evaluationManager.currentPlayerIndex === players.length - 1}
-                className="h-14 w-14 rounded-full hover:bg-slate-100 disabled:opacity-20 flex items-center justify-center transition-all active:scale-95 disabled:cursor-not-allowed"
-              >
-                <ChevronRight className="w-10 h-10 text-slate-700" />
-              </button>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="mb-8">
-              <div className="flex justify-between text-sm text-slate-600 mb-2">
-                <span>Progresso</span>
-                <span className="font-semibold">{evaluationManager.progress}%</span>
-              </div>
-              <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${evaluationManager.progress}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Valence Scoring - Large & Clear */}
-            <div className="space-y-6">
-              {activeValences.map((valence) => (
-                <div key={valence.id} className="bg-slate-50 p-6 rounded-xl border-2 border-slate-200">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-bold text-xl text-slate-900">{valence.name}</h3>
-                    <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                    <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${
                       valence.category === 'Technical' ? 'bg-blue-100 text-blue-800' :
                       valence.category === 'Physical' ? 'bg-red-100 text-red-800' :
                       valence.category === 'Tactical' ? 'bg-purple-100 text-purple-800' :
@@ -442,49 +354,72 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
                     </span>
                   </div>
                   
-                  {/* Score Buttons - Larger for easy tapping */}
-                  <div className="grid grid-cols-6 gap-3">
-                    {[0, 1, 2, 3, 4, 5].map((score) => {
-                      const isSelected = currentEvaluation?.scores[valence.id] === score;
+                  {/* Players Grid - All players for this valence */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {players.map((player) => {
+                      const playerEvaluation = evaluationManager.getPlayerEvaluation(player.id);
+                      const currentScore = playerEvaluation?.scores[valence.id] ?? null;
+                      
                       return (
-                        <button
-                          key={score}
-                          onClick={() => handleScore(valence.id, score)}
-                          className={`
-                            h-16 rounded-xl font-bold text-2xl transition-all duration-150 transform
-                            ${isSelected 
-                              ? 'bg-blue-600 text-white shadow-xl scale-110 ring-4 ring-blue-300' 
-                              : 'bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-700 hover:scale-105 active:scale-95 shadow-md'
-                            }
-                          `}
+                        <div 
+                          key={player.id} 
+                          className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200 hover:border-blue-300 transition-all"
                         >
-                          {score}
-                        </button>
+                          {/* Player Info */}
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="relative">
+                              <div className="w-12 h-12 rounded-full border-2 border-blue-500 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shadow-sm">
+                                <span className="text-blue-700 font-bold text-sm">
+                                  {player.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                                </span>
+                              </div>
+                              {player.jersey_number && (
+                                <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                                  #{player.jersey_number}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-slate-900 text-sm truncate">{player.name}</h4>
+                              {player.position && (
+                                <p className="text-xs text-slate-500">{player.position}</p>
+                              )}
+                            </div>
+                            {currentScore !== null && (
+                              <div className="bg-blue-600 text-white text-lg font-bold w-10 h-10 rounded-lg flex items-center justify-center shadow-md">
+                                {currentScore}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Score Buttons - Compact */}
+                          <div className="grid grid-cols-6 gap-1.5">
+                            {[0, 1, 2, 3, 4, 5].map((score) => {
+                              const isSelected = currentScore === score;
+                              return (
+                                <button
+                                  key={score}
+                                  onClick={() => handleScore(player.id, valence.id, score)}
+                                  className={`
+                                    h-10 rounded-lg font-bold text-base transition-all duration-150 transform
+                                    ${isSelected 
+                                      ? 'bg-blue-600 text-white shadow-lg scale-105 ring-2 ring-blue-300' 
+                                      : 'bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-700 hover:scale-105 active:scale-95 shadow-sm'
+                                    }
+                                  `}
+                                >
+                                  {score}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Actions - Compact at Bottom */}
-          <div className="bg-white rounded-xl shadow-lg border-2 border-slate-200 p-4">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3">Ações Rápidas</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setViewMode('summary')}
-                className="px-4 py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all font-medium text-sm"
-              >
-                📊 Ver Resumo
-              </button>
-              <button
-                onClick={() => {/* TODO: Open substitutions modal */}}
-                className="px-4 py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all font-medium text-sm"
-              >
-                🔄 Substituições
-              </button>
-            </div>
+              );
+            })}
           </div>
 
         </div>
