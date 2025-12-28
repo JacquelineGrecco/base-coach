@@ -102,7 +102,7 @@ export function SessionSummary({
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
-      <div className="max-w-4xl mx-auto p-4 space-y-6">
+      <div className="max-w-4xl mx-auto p-4 space-y-6 pb-8">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white">
           <h1 className="text-3xl font-bold mb-2">Sessão Finalizada!</h1>
