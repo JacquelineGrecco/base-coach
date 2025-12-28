@@ -261,6 +261,10 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
       ])
     );
 
+    // Determine if this is a match or training session
+    // It's a match if there are goals scored or substitutions made
+    const isMatch = matchScore.teamScore > 0 || matchScore.opponentScore > 0 || substitutions.substitutions.length > 0;
+
     return (
       <SessionSummary
         duration={timer.duration}
@@ -269,6 +273,10 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({
         substitutions={substitutions.substitutions}
         notes={sessionNotes}
         playerStatuses={playerStatusesForSummary}
+        isMatch={isMatch}
+        evaluations={evaluationManager.evaluations}
+        players={players}
+        valences={activeValences}
         onSaveAndExit={handleSaveAndExit}
         onGoToDashboard={handleGoToDashboard}
       />

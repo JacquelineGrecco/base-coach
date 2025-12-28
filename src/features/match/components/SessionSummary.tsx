@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Clock, Users, Trophy, ArrowLeftRight, FileText, Sparkles, Save, Home, Loader2 } from 'lucide-react';
+import { Clock, Users, Trophy, ArrowLeftRight, FileText, Sparkles, Save, Home, Loader2, Target } from 'lucide-react';
 import { usePostMatchReport, PostMatchSessionData } from '../hooks/usePostMatchReport';
 import { Substitution } from '../hooks/useSubstitutions';
 import { SessionNote } from './SidelineActions';
 import { Card } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Evaluation } from '@/types';
+import { VALENCES } from '@/lib/constants';
 
 interface SessionSummaryProps {
   duration: number;
@@ -15,6 +17,10 @@ interface SessionSummaryProps {
   substitutions: Substitution[];
   notes: SessionNote[];
   playerStatuses: Map<string, { playerName: string; minutesPlayed: number }>;
+  isMatch: boolean;
+  evaluations: Evaluation[];
+  players: Array<{ id: string; name: string; position?: string; jersey_number?: number }>;
+  valences: typeof VALENCES;
   onSaveAndExit: (aiReport?: string) => void;
   onGoToDashboard: () => void;
 }
@@ -30,6 +36,10 @@ export function SessionSummary({
   substitutions,
   notes,
   playerStatuses,
+  isMatch,
+  evaluations,
+  players,
+  valences,
   onSaveAndExit,
   onGoToDashboard,
 }: SessionSummaryProps) {
@@ -47,6 +57,11 @@ export function SessionSummary({
   const avgMinutes = playerArray.length > 0
     ? Math.round(playerArray.reduce((sum, p) => sum + p.minutesPlayed, 0) / playerArray.length)
     : 0;
+
+  // Training-specific stats
+  const evaluatedPlayersCount = evaluations.filter(e => Object.keys(e.scores).length > 0).length;
+  const totalEvaluations = evaluations.reduce((sum, e) => sum + Object.keys(e.scores).length, 0);
+  const valencesEvaluated = valences.length;
 
   // Prepare data for AI report
   const handleGenerateReport = async () => {
@@ -91,60 +106,130 @@ export function SessionSummary({
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white">
           <h1 className="text-3xl font-bold mb-2">Sessão Finalizada!</h1>
-          <p className="text-blue-100">Veja o resumo e gere um relatório detalhado com IA</p>
+          <p className="text-blue-100">
+            {isMatch 
+              ? 'Veja o resumo e gere um relatório detalhado com IA'
+              : 'Resumo do treino - Veja as avaliações e gere um relatório com IA'
+            }
+          </p>
         </div>
 
-        {/* Score and Duration */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Clock className="w-6 h-6 text-blue-600" />
-              <span className="text-slate-600 font-medium">Duração</span>
-            </div>
-            <p className="text-4xl font-bold text-slate-900 tabular-nums">{formattedDuration}</p>
-          </Card>
+        {/* Training Session Summary */}
+        {!isMatch && (
+          <>
+            {/* Duration and Evaluation Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <Clock className="w-6 h-6 text-blue-600" />
+                  <span className="text-slate-600 font-medium">Duração</span>
+                </div>
+                <p className="text-4xl font-bold text-slate-900 tabular-nums">{formattedDuration}</p>
+              </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Trophy className="w-6 h-6 text-yellow-600" />
-              <span className="text-slate-600 font-medium">Placar Final</span>
-            </div>
-            <p className="text-4xl font-bold text-slate-900 tabular-nums">
-              {teamScore} × {opponentScore}
-            </p>
-          </Card>
-        </div>
+              <Card className="p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <Users className="w-6 h-6 text-green-600" />
+                  <span className="text-slate-600 font-medium">Atletas Avaliados</span>
+                </div>
+                <p className="text-4xl font-bold text-slate-900 tabular-nums">{evaluatedPlayersCount}</p>
+                <p className="text-sm text-slate-500 mt-1">de {players.length} presentes</p>
+              </Card>
 
-        {/* Key Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <ArrowLeftRight className="w-5 h-5 text-purple-600" />
-              <span className="text-sm text-slate-600 font-medium">Substituições</span>
+              <Card className="p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <Target className="w-6 h-6 text-purple-600" />
+                  <span className="text-slate-600 font-medium">Valências</span>
+                </div>
+                <p className="text-4xl font-bold text-slate-900 tabular-nums">{valencesEvaluated}</p>
+                <p className="text-sm text-slate-500 mt-1">{totalEvaluations} avaliações</p>
+              </Card>
             </div>
-            <p className="text-3xl font-bold text-slate-900">{substitutions.length}</p>
-          </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-5 h-5 text-green-600" />
-              <span className="text-sm text-slate-600 font-medium">Jogador Destaque</span>
+            {/* Valences Evaluated */}
+            {valences.length > 0 && (
+              <Card className="p-6">
+                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Target className="w-5 h-5 text-purple-600" />
+                  Valências Avaliadas
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {valences.map((valence) => {
+                    const valenceEvaluations = evaluations.filter(e => 
+                      Object.keys(e.scores).includes(valence.id)
+                    ).length;
+                    return (
+                      <div
+                        key={valence.id}
+                        className="px-4 py-2 bg-slate-100 rounded-lg flex items-center gap-2"
+                      >
+                        <span className="font-semibold text-slate-900">{valence.name}</span>
+                        <span className="text-sm text-slate-500">({valenceEvaluations})</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
+          </>
+        )}
+
+        {/* Match Session Summary */}
+        {isMatch && (
+          <>
+            {/* Score and Duration */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <Clock className="w-6 h-6 text-blue-600" />
+                  <span className="text-slate-600 font-medium">Duração</span>
+                </div>
+                <p className="text-4xl font-bold text-slate-900 tabular-nums">{formattedDuration}</p>
+              </Card>
+
+              <Card className="p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <Trophy className="w-6 h-6 text-yellow-600" />
+                  <span className="text-slate-600 font-medium">Placar Final</span>
+                </div>
+                <p className="text-4xl font-bold text-slate-900 tabular-nums">
+                  {teamScore} × {opponentScore}
+                </p>
+              </Card>
             </div>
-            <p className="text-lg font-bold text-slate-900 truncate">{mostActivePlayer.playerName}</p>
-            <p className="text-sm text-slate-500 tabular-nums">{mostActivePlayer.minutesPlayed}min jogados</p>
-          </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="w-5 h-5 text-orange-600" />
-              <span className="text-sm text-slate-600 font-medium">Média de Minutos</span>
+            {/* Key Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <ArrowLeftRight className="w-5 h-5 text-purple-600" />
+                  <span className="text-sm text-slate-600 font-medium">Substituições</span>
+                </div>
+                <p className="text-3xl font-bold text-slate-900">{substitutions.length}</p>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-5 h-5 text-green-600" />
+                  <span className="text-sm text-slate-600 font-medium">Jogador Destaque</span>
+                </div>
+                <p className="text-lg font-bold text-slate-900 truncate">{mostActivePlayer.playerName}</p>
+                <p className="text-sm text-slate-500 tabular-nums">{mostActivePlayer.minutesPlayed}min jogados</p>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-5 h-5 text-orange-600" />
+                  <span className="text-sm text-slate-600 font-medium">Média de Minutos</span>
+                </div>
+                <p className="text-3xl font-bold text-slate-900 tabular-nums">{avgMinutes}min</p>
+              </Card>
             </div>
-            <p className="text-3xl font-bold text-slate-900 tabular-nums">{avgMinutes}min</p>
-          </Card>
-        </div>
+          </>
+        )}
 
-        {/* Substitution Timeline */}
-        {substitutions.length > 0 && (
+        {/* Substitution Timeline - Only for matches */}
+        {isMatch && substitutions.length > 0 && (
           <Card className="p-6">
             <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
               <ArrowLeftRight className="w-5 h-5 text-purple-600" />
@@ -202,7 +287,10 @@ export function SessionSummary({
           {!hasGenerated && !isGenerating && (
             <div className="text-center py-8">
               <p className="text-slate-600 mb-6">
-                Gere um relatório detalhado com análise tática, gestão de atletas e recomendações para a próxima sessão.
+                {isMatch 
+                  ? 'Gere um relatório detalhado com análise tática, gestão de atletas e recomendações para a próxima sessão.'
+                  : 'Gere um relatório detalhado do treino com análise das avaliações, pontos fortes e áreas de melhoria para cada atleta.'
+                }
               </p>
               <button
                 onClick={handleGenerateReport}
