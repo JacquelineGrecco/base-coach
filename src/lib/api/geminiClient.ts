@@ -4,7 +4,8 @@
  */
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ApiError, handleError } from './supabaseClient';
+import { ApiError } from './types';
+import { handleError } from './supabaseClient';
 
 let ai: GoogleGenAI | null = null;
 
@@ -94,14 +95,35 @@ export async function generateWithRetry<T>(
     } catch (error) {
       lastError = handleError(error);
       
+      // Check for rate limit errors (429)
+      const isRateLimit = lastError.message.includes('429') || 
+                         lastError.message.includes('quota') || 
+                         lastError.message.includes('rate limit') ||
+                         lastError.message.includes('RESOURCE_EXHAUSTED');
+      
       // Don't retry on certain errors
       if (lastError.message.includes('API key') || lastError.message.includes('authentication')) {
         break;
       }
 
-      // Wait before retrying (exponential backoff)
+      // For rate limits, use longer delays and don't retry as aggressively
+      if (isRateLimit) {
+        if (attempt < maxRetries - 1) {
+          // Wait longer for rate limits: 5s, 10s, 20s
+          await sleep(5000 * Math.pow(2, attempt));
+        } else {
+          // Provide a more helpful error message for rate limits
+          lastError = {
+            message: 'API quota or rate limit exceeded. Please check your Gemini API quota in Google AI Studio or try again later.',
+            code: 'RATE_LIMIT_EXCEEDED',
+            details: lastError.details,
+          };
+        }
+      } else {
+        // Wait before retrying (exponential backoff for other errors)
       if (attempt < maxRetries - 1) {
         await sleep(retryDelay * Math.pow(2, attempt));
+        }
       }
     }
   }

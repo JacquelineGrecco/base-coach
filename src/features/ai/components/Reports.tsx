@@ -1893,7 +1893,7 @@ Gerado por BaseCoach - Plataforma de Análise de Desempenho para Futsal`;
                   const color = colors[index % colors.length];
                   
                   const statData = filteredEvolutionData
-                    .filter(d => d[stat.valence_id] !== undefined && d[stat.valence_id] > 0)
+                    .filter(d => d[stat.valence_id] !== undefined && Number(d[stat.valence_id]) > 0)
                     .map(d => Number(d[stat.valence_id]));
                   
                   const maxScore = statData.length > 0 ? Math.max(...statData) : 0;
