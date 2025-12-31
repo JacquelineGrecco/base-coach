@@ -2,10 +2,12 @@
 
 import React from 'react';
 import { ViewState } from '@/types';
-import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu, User, Users, MessageCircle, CreditCard, Gift, Clock } from 'lucide-react';
+import { LayoutDashboard, PlayCircle, BookOpen, BarChart2, LogOut, Menu, User, Users, MessageCircle, CreditCard, Gift, Clock, X, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { subscriptionService, SubscriptionInfo } from '@/features/auth/services/subscriptionService';
 import { TrialExpirationWarning } from './TrialExpirationWarning';
+import BottomNav from './BottomNav';
+import MoreMenu from './MoreMenu';
 
 interface LayoutProps {
   currentView: ViewState;
@@ -16,10 +18,11 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) => {
   const { signOut, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = React.useState(false);
   const [subscription, setSubscription] = React.useState<SubscriptionInfo | null>(null);
   const [trialDaysLeft, setTrialDaysLeft] = React.useState<number | null>(null);
 
-  const SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || '5511999999999';
+  const SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || '5511984199058';
 
   // Load subscription info
   React.useEffect(() => {
@@ -62,7 +65,7 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
       }}
       className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
         currentView === view
-          ? 'bg-blue-600 text-white shadow-md'
+          ? 'bg-emerald-600 text-white shadow-md'
           : 'text-slate-400 hover:bg-slate-800 hover:text-white'
       }`}
     >
@@ -106,48 +109,51 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
         onUpgrade={() => onChangeView('PRICING')}
       />
 
-      {/* Sidebar - Desktop */}
+      {/* Sidebar - Desktop Only */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white border-r border-slate-800">
+        {/* Logo & User */}
         <div className="p-6 border-b border-slate-800">
-            <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center font-bold text-lg">B</div>
-                <span className="text-xl font-bold tracking-tight">BaseCoach</span>
+          <div className="flex items-center space-x-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center font-bold text-lg shadow-lg">
+              B
             </div>
-            {user && (
-              <p className="text-xs text-slate-400 mt-2 truncate">{user.email}</p>
-            )}
+            <span className="text-xl font-bold tracking-tight">BaseCoach</span>
+          </div>
+          {user && (
+            <p className="text-xs text-slate-400 mt-3 truncate">{user.email}</p>
+          )}
         </div>
         
         {/* Primary Navigation - Core Features */}
         <nav className="flex-1 p-4 space-y-2">
-            <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
-            <NavItem view="TEAMS" icon={Users} label="Times" />
-            <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
-            <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
+          <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
+          <NavItem view="TEAMS" icon={Users} label="Times" />
+          <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
+          <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
         </nav>
 
         {/* Bottom Section - Account & Support */}
         <div className="p-4 border-t-2 border-slate-700 space-y-2">
-            <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Conta e Suporte
-            </div>
-            <NavItem view="PROFILE" icon={User} label="Perfil" />
-            <NavItem view="PRICING" icon={CreditCard} label="Planos" />
-            <button 
-              onClick={handleContactSupport}
-              className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-            >
-                <MessageCircle className="w-5 h-5" />
-                <span>Suporte</span>
-            </button>
+          <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Conta e Suporte
+          </div>
+          <NavItem view="PROFILE" icon={User} label="Perfil" />
+          <NavItem view="PRICING" icon={CreditCard} label="Planos" />
+          <button 
+            onClick={handleContactSupport}
+            className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span>Suporte</span>
+          </button>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Trial Banner */}
+        {/* Trial Banner - Desktop */}
         {trialDaysLeft !== null && trialDaysLeft >= 0 && trialStyle && (
-          <div className={`${trialStyle.bg} ${trialStyle.text} py-3 px-4 shadow-md`}>
+          <div className={`hidden md:block ${trialStyle.bg} ${trialStyle.text} py-3 px-4 shadow-md`}>
             <div className="max-w-7xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{trialStyle.icon}</span>
@@ -168,52 +174,97 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onChangeView, children }) 
           </div>
         )}
 
-        {/* Mobile Header */}
-        <header className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center shadow-md z-20">
-             <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center font-bold text-lg">B</div>
-                <span className="text-xl font-bold">BaseCoach</span>
+        {/* Mobile Header - Simplified */}
+        <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center z-20">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center font-bold text-white shadow-sm">
+              B
             </div>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                <Menu className="w-6 h-6" />
+            <span className="text-lg font-bold text-slate-900">BaseCoach</span>
+          </div>
+          
+          {/* Trial Badge on Mobile */}
+          {trialDaysLeft !== null && trialDaysLeft >= 0 && (
+            <button
+              onClick={() => onChangeView('PRICING')}
+              className={`
+                flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold
+                ${trialDaysLeft <= 3 
+                  ? 'bg-red-100 text-red-700' 
+                  : trialDaysLeft <= 7 
+                    ? 'bg-yellow-100 text-yellow-700' 
+                    : 'bg-blue-100 text-blue-700'
+                }
+              `}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              {trialDaysLeft}d
             </button>
+          )}
         </header>
 
-        {/* Mobile Menu Overlay */}
+        {/* Legacy Mobile Menu Overlay - For hamburger menu if needed */}
         {mobileMenuOpen && (
-            <div className="absolute inset-0 bg-slate-900 z-50 p-6 flex flex-col space-y-4 md:hidden">
-                <div className="flex justify-end mb-4">
-                    <button onClick={() => setMobileMenuOpen(false)} className="text-white">
-                         <span className="text-2xl">✕</span>
-                    </button>
+          <div className="fixed inset-0 bg-slate-900 z-50 p-6 flex flex-col space-y-4 md:hidden animate-fadeIn">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center font-bold text-white">
+                  B
                 </div>
-                {/* Primary Navigation */}
-                <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
-                <NavItem view="TEAMS" icon={Users} label="Times" />
-                <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
-                <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
-                
-                {/* Bottom Section - Account & Support */}
-                <div className="pt-4 mt-auto space-y-2 border-t-2 border-slate-700">
-                  <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Conta e Suporte
-                  </div>
-                  <NavItem view="PROFILE" icon={User} label="Perfil" />
-                  <NavItem view="PRICING" icon={CreditCard} label="Planos" />
-                  <button 
-                    onClick={handleContactSupport}
-                    className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                  >
-                      <MessageCircle className="w-5 h-5" />
-                      <span>Suporte</span>
-                  </button>
-                </div>
+                <span className="text-xl font-bold text-white">BaseCoach</span>
+              </div>
+              <button 
+                onClick={() => setMobileMenuOpen(false)} 
+                className="text-white p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
+            
+            {/* Primary Navigation */}
+            <NavItem view="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
+            <NavItem view="TEAMS" icon={Users} label="Times" />
+            <NavItem view="DRILLS" icon={BookOpen} label="Biblioteca" />
+            <NavItem view="REPORTS" icon={BarChart2} label="Relatórios" />
+            
+            {/* Bottom Section - Account & Support */}
+            <div className="pt-4 mt-auto space-y-2 border-t-2 border-slate-700">
+              <div className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Conta e Suporte
+              </div>
+              <NavItem view="PROFILE" icon={User} label="Perfil" />
+              <NavItem view="PRICING" icon={CreditCard} label="Planos" />
+              <button 
+                onClick={handleContactSupport}
+                className="w-full flex items-center space-x-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>Suporte</span>
+              </button>
+            </div>
+          </div>
         )}
 
-        <div className="flex-1 overflow-y-auto relative">
-            {children}
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto relative pb-20 md:pb-0">
+          {children}
         </div>
+
+        {/* Bottom Navigation - Mobile Only */}
+        <BottomNav 
+          currentView={currentView}
+          onChangeView={onChangeView}
+          onOpenMore={() => setMoreMenuOpen(true)}
+        />
+
+        {/* More Menu - Bottom Sheet */}
+        <MoreMenu
+          isOpen={moreMenuOpen}
+          onClose={() => setMoreMenuOpen(false)}
+          currentView={currentView}
+          onChangeView={onChangeView}
+          onContactSupport={handleContactSupport}
+        />
       </main>
     </div>
   );

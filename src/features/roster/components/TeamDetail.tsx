@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Users, Edit2, Archive, Trash2, AlertCircle, CheckCircle, Folder } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Edit2, Archive, Trash2, AlertCircle, CheckCircle, Folder, Palette } from 'lucide-react';
 import { teamService, Team } from '@/features/roster/services/teamService';
 import { categoryService, Category } from '@/features/roster/services/categoryService';
+import TeamBranding from './TeamBranding';
 
 interface TeamDetailProps {
   teamId: string;
@@ -286,6 +287,11 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onBack, onViewPlayers }
           </div>
           <ArrowLeft className="w-5 h-5 text-gray-400 rotate-180" />
         </div>
+      </div>
+
+      {/* Branding Section */}
+      <div className="mb-8">
+        <TeamBranding team={team} onUpdate={loadTeamData} />
       </div>
 
       {/* Categories Section */}

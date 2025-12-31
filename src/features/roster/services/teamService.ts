@@ -11,6 +11,10 @@ export interface Team {
   is_archived: boolean;
   created_at: string;
   updated_at: string;
+  // Branding fields
+  logo_url?: string;
+  primary_color?: string;
+  secondary_color?: string;
   // Computed fields
   category_count?: number;
   player_count?: number;
@@ -154,6 +158,9 @@ export const teamService = {
       season?: string;
       notes?: string;
       is_archived?: boolean;
+      logo_url?: string;
+      primary_color?: string;
+      secondary_color?: string;
     }
   ): Promise<{ error: Error | null }> {
     try {
@@ -169,6 +176,108 @@ export const teamService = {
       return { error: null };
     } catch (error) {
       console.error('Update team error:', error);
+      return { error: error as Error };
+    }
+  },
+
+  /**
+   * Upload team logo
+   */
+  async uploadTeamLogo(teamId: string, file: File): Promise<{ url: string | null; error: Error | null }> {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${teamId}-${Date.now()}.${fileExt}`;
+      const filePath = `team-logos/${fileName}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('team-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('team-assets')
+        .getPublicUrl(filePath);
+
+      // Update team with logo URL
+      const { error: updateError } = await supabase
+        .from('teams')
+        .update({
+          logo_url: publicUrl,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq('id', teamId);
+
+      if (updateError) throw updateError;
+
+      return { url: publicUrl, error: null };
+    } catch (error) {
+      console.error('Upload team logo error:', error);
+      return { url: null, error: error as Error };
+    }
+  },
+
+  /**
+   * Delete team logo
+   */
+  async deleteTeamLogo(teamId: string, logoUrl: string): Promise<{ error: Error | null }> {
+    try {
+      // Extract file path from URL
+      const urlParts = logoUrl.split('/team-assets/');
+      if (urlParts.length > 1) {
+        const filePath = urlParts[1];
+        
+        // Delete from storage
+        await supabase.storage
+          .from('team-assets')
+          .remove([filePath]);
+      }
+
+      // Update team to remove logo URL
+      const { error } = await supabase
+        .from('teams')
+        .update({
+          logo_url: null,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq('id', teamId);
+
+      if (error) throw error;
+      return { error: null };
+    } catch (error) {
+      console.error('Delete team logo error:', error);
+      return { error: error as Error };
+    }
+  },
+
+  /**
+   * Update team branding (colors)
+   */
+  async updateTeamBranding(
+    teamId: string,
+    branding: {
+      primary_color?: string;
+      secondary_color?: string;
+    }
+  ): Promise<{ error: Error | null }> {
+    try {
+      const { error } = await supabase
+        .from('teams')
+        .update({
+          ...branding,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq('id', teamId);
+
+      if (error) throw error;
+      return { error: null };
+    } catch (error) {
+      console.error('Update team branding error:', error);
       return { error: error as Error };
     }
   },

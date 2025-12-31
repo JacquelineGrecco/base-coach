@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { VALENCES } from '@/lib/constants';
-import { ChevronRight, AlertCircle, CheckCircle2, Users, Folder, UserCheck, UserX } from 'lucide-react';
+import { ChevronRight, AlertCircle, CheckCircle2, Users, Folder, UserCheck, UserX, Check, X, Save, RotateCcw } from 'lucide-react';
 import { teamService, Team } from '@/features/roster/services/teamService';
 import { categoryService } from '@/features/roster/services/categoryService';
 import { supabase } from '@/lib/supabase';
@@ -13,7 +13,7 @@ interface SessionSetupProps {
     teamId: string;
     categoryId: string | null;
     selectedValenceIds: string[];
-    presentPlayerIds: string[]; // Added for attendance tracking
+    presentPlayerIds: string[];
   }) => void;
   onCancel: () => void;
   onNavigateToTeams?: () => void;
@@ -33,6 +33,8 @@ interface Player {
   position?: string;
 }
 
+const SAVED_VALENCES_KEY = 'basecoach_saved_valences';
+
 const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, onNavigateToTeams }) => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -46,6 +48,29 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedValences, setSelectedValences] = useState<string[]>([]);
+  const [hasSavedDefaults, setHasSavedDefaults] = useState(false);
+
+  // Load saved valence defaults on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(SAVED_VALENCES_KEY);
+    if (saved) {
+      try {
+        const savedValences = JSON.parse(saved);
+        if (Array.isArray(savedValences) && savedValences.length > 0) {
+          // Validate that saved valences still exist
+          const validValences = savedValences.filter((id: string) => 
+            VALENCES.some(v => v.id === id)
+          );
+          if (validValences.length > 0) {
+            setSelectedValences(validValences);
+            setHasSavedDefaults(true);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading saved valences:', e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     loadTeams();
@@ -55,7 +80,7 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
     if (selectedTeamId) {
       loadCategories(selectedTeamId);
       loadPlayerCount(selectedTeamId, selectedCategoryId);
-      loadPlayers(selectedTeamId, selectedCategoryId); // Load players for selection
+      loadPlayers(selectedTeamId, selectedCategoryId);
     }
   }, [selectedTeamId, selectedCategoryId]);
 
@@ -63,7 +88,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
     setLoading(true);
     
     try {
-      // Check session before making the query
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError('Sessão expirada. Por favor, recarregue a página.');
@@ -75,8 +99,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
 
       if (teamsError) {
         console.error('Error loading teams:', teamsError);
-        
-        // Check if it's an auth error
         if (teamsError.message?.includes('session') || teamsError.message?.includes('JWT')) {
           setError('Sessão expirada. Por favor, recarregue a página e faça login novamente.');
         } else {
@@ -88,7 +110,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
 
       setTeams(teamsData || []);
       
-      // Auto-select first team
       if (teamsData && teamsData.length > 0) {
         setSelectedTeamId(teamsData[0].id);
       } else {
@@ -104,7 +125,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
 
   async function loadCategories(teamId: string) {
     try {
-      // Check session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         console.error('No active session when loading categories');
@@ -113,7 +133,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
 
       const { categories: categoriesData } = await categoryService.getCategoriesByTeam(teamId);
       
-      // Load player count for total team and no-category players
       const { count: totalCount } = await supabase
         .from('players')
         .select('*', { count: 'exact', head: true })
@@ -130,7 +149,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
       setTotalTeamPlayerCount(totalCount || 0);
       setNoCategoryPlayerCount(noCatCount || 0);
       
-      // Load player count for each category
       if (categoriesData && categoriesData.length > 0) {
         const categoriesWithCount = await Promise.all(
           categoriesData.map(async (category) => {
@@ -145,7 +163,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
           })
         );
         
-        // Only show categories that have players
         const nonEmptyCategories = categoriesWithCount.filter(cat => (cat.player_count || 0) > 0);
         setCategories(nonEmptyCategories);
       } else {
@@ -153,7 +170,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
       }
     } catch (error: any) {
       console.error('Error loading categories:', error);
-      
       if (error.message?.includes('session') || error.message?.includes('JWT')) {
         setError('Sessão expirada. Por favor, recarregue a página.');
       }
@@ -170,12 +186,8 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
 
       if (categoryId) {
         query = query.eq('category_id', categoryId);
-      } else {
-        // If "All players" is selected, don't filter by category
-        // But if a specific "no category" is selected, filter for null
-        if (selectedCategoryId === 'no-category') {
-          query = query.is('category_id', null);
-        }
+      } else if (selectedCategoryId === 'no-category') {
+        query = query.is('category_id', null);
       }
 
       const { count } = await query;
@@ -187,7 +199,6 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
 
   async function loadPlayers(teamId: string, categoryId: string | null) {
     try {
-      // Check session before making the query
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         console.error('No active session when loading players');
@@ -212,14 +223,7 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
       const { data, error } = await query;
       
       if (error) {
-        console.error('Error loading players:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
-        });
-        
-        // Check if it's an auth error
+        console.error('Error loading players:', error);
         if (error.message?.includes('session') || error.message?.includes('JWT') || error.code === 'PGRST301') {
           setError('Sessão expirada. Por favor, recarregue a página e faça login novamente.');
         } else {
@@ -231,12 +235,9 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
 
       const playersData = (data || []) as Player[];
       setPlayers(playersData);
-      // Auto-select all players by default
       setSelectedPlayerIds(playersData.map(p => p.id));
     } catch (error: any) {
       console.error('Error loading players:', error);
-      
-      // Better error message for users
       if (error.message?.includes('session') || error.message?.includes('Auth')) {
         setError('Sessão expirada. Por favor, recarregue a página.');
       } else {
@@ -251,6 +252,38 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
       setSelectedValences(selectedValences.filter(id => id !== valenceId));
     } else {
       setSelectedValences([...selectedValences, valenceId]);
+    }
+  };
+
+  const selectAllValences = () => {
+    setSelectedValences(VALENCES.map(v => v.id));
+  };
+
+  const clearAllValences = () => {
+    setSelectedValences([]);
+  };
+
+  const saveValencesAsDefault = () => {
+    if (selectedValences.length > 0) {
+      localStorage.setItem(SAVED_VALENCES_KEY, JSON.stringify(selectedValences));
+      setHasSavedDefaults(true);
+    }
+  };
+
+  const loadSavedValences = () => {
+    const saved = localStorage.getItem(SAVED_VALENCES_KEY);
+    if (saved) {
+      try {
+        const savedValences = JSON.parse(saved);
+        if (Array.isArray(savedValences)) {
+          const validValences = savedValences.filter((id: string) => 
+            VALENCES.some(v => v.id === id)
+          );
+          setSelectedValences(validValences);
+        }
+      } catch (e) {
+        console.error('Error loading saved valences:', e);
+      }
     }
   };
 
@@ -290,11 +323,18 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
     return acc;
   }, {} as Record<string, typeof VALENCES>);
 
-  const selectedTeam = teams.find(t => t.id === selectedTeamId);
+  const categoryColors: Record<string, { bg: string; text: string; border: string; light: string }> = {
+    'Technical': { bg: 'bg-blue-500', text: 'text-blue-700', border: 'border-blue-500', light: 'bg-blue-50' },
+    'Physical': { bg: 'bg-red-500', text: 'text-red-700', border: 'border-red-500', light: 'bg-red-50' },
+    'Tactical': { bg: 'bg-purple-500', text: 'text-purple-700', border: 'border-purple-500', light: 'bg-purple-50' },
+    'Mental': { bg: 'bg-yellow-500', text: 'text-yellow-700', border: 'border-yellow-500', light: 'bg-yellow-50' },
+  };
+
+  const canStart = selectedValences.length > 0 && selectedTeamId && selectedPlayerIds.length > 0;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full py-20">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
@@ -305,7 +345,7 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
     const noPlayers = totalTeamPlayerCount === 0;
     
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-4 md:p-6 max-w-4xl mx-auto">
         <EmptyState
           icon={AlertCircle}
           title={noTeams ? 'Nenhum time encontrado' : 
@@ -334,90 +374,74 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto pb-24 md:pb-6">
+      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
-          <h2 className="text-2xl font-bold mb-2">Configurar Sessão de Treino</h2>
-          <p className="text-blue-100">Selecione o time, categoria (opcional) e até 3 critérios para avaliar</p>
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 md:p-6 text-white">
+          <h2 className="text-xl md:text-2xl font-bold mb-1">Nova Sessão de Treino</h2>
+          <p className="text-blue-100 text-sm md:text-base">Configure o time, atletas e critérios de avaliação</p>
         </div>
 
         {/* Team and Category Selection */}
-        <div className="p-6 bg-slate-50 border-b border-slate-200 space-y-4">
-          {/* Team Selector */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              <Users className="w-4 h-4 inline mr-1" />
-              Time *
-            </label>
-            <select
-              value={selectedTeamId}
-              onChange={(e) => {
-                setSelectedTeamId(e.target.value);
-                setSelectedCategoryId(null); // Reset category when team changes
-              }}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            >
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name} ({team.player_count || 0} atletas)
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="p-4 md:p-6 bg-slate-50 border-b border-slate-200 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Team Selector */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5">
+                <Users className="w-4 h-4" />
+                Time
+              </label>
+              <select
+                value={selectedTeamId}
+                onChange={(e) => {
+                  setSelectedTeamId(e.target.value);
+                  setSelectedCategoryId(null);
+                }}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name} ({team.player_count || 0} atletas)
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Category Selector (Optional) */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              <Folder className="w-4 h-4 inline mr-1" />
-              Categoria (opcional)
-            </label>
-            <select
-              value={selectedCategoryId || ''}
-              onChange={(e) => setSelectedCategoryId(e.target.value || null)}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            >
-              {totalTeamPlayerCount > 0 && (
-                <option value="">Todos os Atletas do Time ({totalTeamPlayerCount} atletas)</option>
-              )}
-              {noCategoryPlayerCount > 0 && (
-                <option value="no-category">Sem Categoria ({noCategoryPlayerCount} atletas)</option>
-              )}
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name} {category.gender && `(${category.gender === 'masculino' ? '♂' : category.gender === 'feminino' ? '♀' : '⚥'})`}
-                  {category.player_count !== undefined && ` - ${category.player_count} atletas`}
-                </option>
-              ))}
-            </select>
-            {categories.length === 0 && noCategoryPlayerCount === 0 && totalTeamPlayerCount > 0 && (
-              <p className="text-xs text-amber-600 mt-1">
-                ⚠️ Todos os atletas estão em categorias sem atletas ativos
-              </p>
-            )}
-            {(categories.length > 0 || noCategoryPlayerCount > 0) && (
-              <p className="text-xs text-slate-500 mt-1">
-                Apenas categorias com atletas estão disponíveis
-              </p>
-            )}
-          </div>
-
-          {/* Player Count Badge */}
-          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
-            <span className="text-sm font-medium text-slate-700">Atletas selecionados:</span>
-            <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-bold">
-              {playerCount}
-            </span>
+            {/* Category Selector */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5">
+                <Folder className="w-4 h-4" />
+                Categoria (opcional)
+              </label>
+              <select
+                value={selectedCategoryId || ''}
+                onChange={(e) => setSelectedCategoryId(e.target.value || null)}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                {totalTeamPlayerCount > 0 && (
+                  <option value="">Todos os Atletas ({totalTeamPlayerCount})</option>
+                )}
+                {noCategoryPlayerCount > 0 && (
+                  <option value="no-category">Sem Categoria ({noCategoryPlayerCount})</option>
+                )}
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name} {category.gender && `(${category.gender === 'masculino' ? '♂' : category.gender === 'feminino' ? '♀' : '⚥'})`}
+                    {category.player_count !== undefined && ` - ${category.player_count}`}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
         {/* Player Presence Selection */}
         {players.length > 0 && (
-          <div className="p-6 bg-white border-b border-slate-200">
+          <div className="p-4 md:p-6 border-b border-slate-200">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
                 <UserCheck className="w-5 h-5 text-emerald-600" />
-                Presença dos Atletas
+                Presença
               </h3>
               <button
                 onClick={toggleAllPlayers}
@@ -428,11 +452,11 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
             </div>
             
             <p className="text-sm text-slate-600 mb-4">
-              Marque os atletas que estão <strong>presentes</strong> no treino. Apenas atletas marcados serão avaliados.
+              Marque os atletas <strong>presentes</strong> no treino.
             </p>
 
-            {/* Player Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-2">
+            {/* Compact Player Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-64 overflow-y-auto pr-1">
               {players.map((player) => {
                 const isPresent = selectedPlayerIds.includes(player.id);
                 
@@ -441,54 +465,33 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
                     key={player.id}
                     onClick={() => togglePlayer(player.id)}
                     className={`
-                      p-3 rounded-lg border-2 text-left transition-all
+                      p-2.5 rounded-xl border-2 text-left transition-all active:scale-[0.98]
                       ${isPresent
                         ? 'border-emerald-500 bg-emerald-50'
-                        : 'border-slate-200 bg-slate-50 opacity-60'
+                        : 'border-slate-200 bg-white opacity-60'
                       }
-                      hover:shadow-md
                     `}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {/* Checkbox Visual */}
-                        <div className={`
-                          w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0
-                          ${isPresent
-                            ? 'border-emerald-500 bg-emerald-500'
-                            : 'border-slate-300 bg-white'
-                          }
-                        `}>
-                          {isPresent && (
-                            <CheckCircle2 className="w-4 h-4 text-white" />
-                          )}
-                        </div>
-                        
-                        {/* Player Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-slate-900 truncate">
-                            {player.jersey_number && (
-                              <span className="text-emerald-600 font-bold mr-1.5">
-                                #{player.jersey_number}
-                              </span>
-                            )}
-                            {player.name}
-                          </div>
-                          {player.position && (
-                            <div className="text-xs text-slate-500 truncate">
-                              {player.position}
-                            </div>
-                          )}
-                        </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`
+                        w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0
+                        ${isPresent
+                          ? 'border-emerald-500 bg-emerald-500'
+                          : 'border-slate-300 bg-white'
+                        }
+                      `}>
+                        {isPresent && <Check className="w-3 h-3 text-white" />}
                       </div>
                       
-                      {/* Status Icon */}
-                      <div className="ml-2">
-                        {isPresent ? (
-                          <UserCheck className="w-5 h-5 text-emerald-600" />
-                        ) : (
-                          <UserX className="w-5 h-5 text-slate-400" />
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-slate-900 text-sm truncate">
+                          {player.jersey_number && (
+                            <span className="text-emerald-600 font-bold mr-1">
+                              #{player.jersey_number}
+                            </span>
+                          )}
+                          {player.name.split(' ')[0]}
+                        </div>
                       </div>
                     </div>
                   </button>
@@ -496,145 +499,171 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
               })}
             </div>
 
-            {/* Summary Bar */}
-            <div className="mt-4 p-3 bg-emerald-50 rounded-lg border border-emerald-200 flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700">Atletas presentes:</span>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-emerald-600">
-                  {selectedPlayerIds.length}
-                </span>
-                <span className="text-sm text-slate-500">/ {players.length}</span>
-              </div>
+            {/* Summary */}
+            <div className="mt-4 p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-700">Presentes:</span>
+              <span className="text-lg font-bold text-emerald-600">
+                {selectedPlayerIds.length} / {players.length}
+              </span>
             </div>
 
             {selectedPlayerIds.length === 0 && (
-              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
                 <p className="text-sm text-amber-700">
-                  Selecione pelo menos 1 atleta para iniciar a sessão
+                  Selecione pelo menos 1 atleta
                 </p>
               </div>
             )}
           </div>
         )}
 
-        {/* Selection Counter */}
-        <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              {selectedValences.length > 0 ? (
-                <CheckCircle2 className="w-5 h-5 text-green-600" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-blue-600" />
-              )}
-              <span className="font-semibold text-slate-900">
-                {selectedValences.length} {selectedValences.length === 1 ? 'critério selecionado' : 'critérios selecionados'}
-              </span>
+        {/* Valence Selection */}
+        <div className="p-4 md:p-6">
+          {/* Valence Header with Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Critérios de Avaliação</h3>
+              <p className="text-sm text-slate-600">
+                {selectedValences.length === 0 
+                  ? 'Selecione os critérios para avaliar' 
+                  : `${selectedValences.length} critério${selectedValences.length > 1 ? 's' : ''} selecionado${selectedValences.length > 1 ? 's' : ''}`
+                }
+              </p>
             </div>
-            <span className="text-sm text-slate-600">
-              {selectedValences.length === 0 && "Selecione pelo menos 1 critério"}
-              {selectedValences.length > 0 && selectedValences.length <= 3 && "Recomendado: 1-3 critérios para avaliação rápida"}
-              {selectedValences.length > 3 && `${selectedValences.length} critérios selecionados - avaliação detalhada`}
-            </span>
+            
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={selectAllValences}
+                className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+              >
+                Selecionar Todos
+              </button>
+              <button
+                onClick={clearAllValences}
+                disabled={selectedValences.length === 0}
+                className="px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium disabled:opacity-50"
+              >
+                Limpar
+              </button>
+              {hasSavedDefaults && (
+                <button
+                  onClick={loadSavedValences}
+                  className="px-3 py-1.5 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Padrão
+                </button>
+              )}
+              {selectedValences.length > 0 && (
+                <button
+                  onClick={saveValencesAsDefault}
+                  className="px-3 py-1.5 text-sm bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1"
+                  title="Salvar como padrão para próximas sessões"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Salvar
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Valence Grid by Category */}
+          <div className="space-y-4">
+            {Object.entries(valencesByCategory).map(([category, valences]) => {
+              const colors = categoryColors[category] || categoryColors['Technical'];
+              const selectedInCategory = valences.filter(v => selectedValences.includes(v.id)).length;
+              
+              return (
+                <div key={category} className="space-y-2">
+                  {/* Category Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${colors.bg}`} />
+                      <span className={`text-sm font-semibold uppercase tracking-wide ${colors.text}`}>
+                        {category}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        ({selectedInCategory}/{valences.length})
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (selectedInCategory === valences.length) {
+                          // Deselect all in category
+                          setSelectedValences(selectedValences.filter(id => !valences.some(v => v.id === id)));
+                        } else {
+                          // Select all in category
+                          const categoryIds = valences.map(v => v.id);
+                          setSelectedValences([...new Set([...selectedValences, ...categoryIds])]);
+                        }
+                      }}
+                      className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                    >
+                      {selectedInCategory === valences.length ? 'Desmarcar' : 'Marcar todos'}
+                    </button>
+                  </div>
+                  
+                  {/* Valence Chips */}
+                  <div className="flex flex-wrap gap-2">
+                    {valences.map((valence) => {
+                      const isSelected = selectedValences.includes(valence.id);
+                      
+                      return (
+                        <button
+                          key={valence.id}
+                          onClick={() => toggleValence(valence.id)}
+                          className={`
+                            px-4 py-2.5 rounded-xl font-medium text-sm transition-all active:scale-[0.98]
+                            ${isSelected 
+                              ? `${colors.light} ${colors.text} border-2 ${colors.border} shadow-sm` 
+                              : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-slate-300'
+                            }
+                          `}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isSelected && <Check className="w-4 h-4" />}
+                            {valence.name}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Valence Selection Grid */}
-        <div className="p-6 space-y-6">
-          {Object.entries(valencesByCategory).map(([category, valences]) => (
-            <div key={category}>
-              <h3 className={`text-sm font-bold uppercase tracking-wide mb-3 flex items-center ${
-                category === 'Technical' ? 'text-blue-700' :
-                category === 'Physical' ? 'text-red-700' :
-                category === 'Tactical' ? 'text-purple-700' :
-                'text-yellow-700'
-              }`}>
-                <span className={`w-2 h-2 rounded-full mr-2 ${
-                  category === 'Technical' ? 'bg-blue-500' :
-                  category === 'Physical' ? 'bg-red-500' :
-                  category === 'Tactical' ? 'bg-purple-500' :
-                  'bg-yellow-500'
-                }`}></span>
-                {category}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {valences.map((valence) => {
-                  const isSelected = selectedValences.includes(valence.id);
-                  
-                  return (
-                    <button
-                      key={valence.id}
-                      onClick={() => toggleValence(valence.id)}
-                      className={`
-                        p-4 rounded-lg border-2 text-left transition-all transform
-                        ${isSelected 
-                          ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]' 
-                          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 hover:scale-[1.01]'
-                        }
-                      `}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="font-semibold text-slate-900">{valence.name}</div>
-                          <div className={`text-xs mt-1 px-2 py-0.5 rounded-full inline-block ${
-                            category === 'Technical' ? 'bg-blue-100 text-blue-700' :
-                            category === 'Physical' ? 'bg-red-100 text-red-700' :
-                            category === 'Tactical' ? 'bg-purple-100 text-purple-700' :
-                            'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {category}
-                          </div>
-                        </div>
-                        {isSelected && (
-                          <div className="flex-shrink-0 ml-2">
-                            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                              <CheckCircle2 className="w-4 h-4 text-white" />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+        {/* Action Buttons - Fixed on Mobile */}
+        <div className="fixed md:relative bottom-16 md:bottom-0 left-0 right-0 p-4 md:px-6 md:py-4 bg-white border-t border-slate-200 flex justify-between items-center gap-3 z-40">
           <button
             onClick={onCancel}
-            className="h-12 px-6 py-3 text-slate-700 hover:text-slate-900 font-medium transition-all duration-200 active:scale-95"
+            className="flex-1 md:flex-none h-12 px-6 text-slate-700 hover:text-slate-900 font-medium transition-all active:scale-95"
           >
             Cancelar
           </button>
           <button
             onClick={handleStart}
-            disabled={selectedValences.length === 0 || playerCount === 0 || selectedPlayerIds.length === 0}
+            disabled={!canStart}
             className={`
-              h-12 px-8 py-3 rounded-lg font-semibold flex items-center transition-all duration-200 active:scale-95
-              ${selectedValences.length === 0 || playerCount === 0 || selectedPlayerIds.length === 0
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200 hover:scale-105'
+              flex-1 md:flex-none h-12 px-8 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-95
+              ${!canStart
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
               }
             `}
-            title={
-              playerCount === 0 ? 'Adicione atletas ao time primeiro' :
-              selectedPlayerIds.length === 0 ? 'Marque pelo menos 1 atleta presente' :
-              ''
-            }
           >
             Iniciar Treino
-            <ChevronRight className="w-5 h-5 ml-2" />
+            <ChevronRight className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Helper Text */}
-        <div className="px-6 py-3 bg-blue-50 border-t border-blue-100">
-          <p className="text-xs text-slate-800 text-center">
-            💡 <strong>Dica:</strong> Recomendamos 1-3 critérios para avaliação rápida durante o treino, 
-            mas você pode selecionar quantos quiser para uma análise mais detalhada.
+        {/* Tip */}
+        <div className="hidden md:block px-6 py-3 bg-blue-50 border-t border-blue-100">
+          <p className="text-xs text-slate-700 text-center">
+            💡 <strong>Dica:</strong> Use "Salvar" para guardar seus critérios favoritos e carregá-los rapidamente nas próximas sessões.
           </p>
         </div>
       </div>
@@ -643,4 +672,3 @@ const SessionSetup: React.FC<SessionSetupProps> = ({ onStartSession, onCancel, o
 };
 
 export default SessionSetup;
-

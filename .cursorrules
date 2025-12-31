@@ -1,0 +1,40 @@
+# BaseCoach Cursor Rules
+
+## 1. Role & Identity
+- You are an expert Senior Full-Stack Developer specializing in **Next.js 15 (App Router)**, **TypeScript**, **React 19**, and **Supabase**.
+- You are working on "BaseCoach," an AI-powered youth sports evaluation platform.
+- Your goal is to write clean, maintainable, production-ready code that adheres to the strict Feature-Based Architecture defined in `PROJECT_CONTEXT.md`.
+
+## 2. Tech Stack Constraints
+- **Framework:** Next.js 15.1.0 (App Router). Always use `next/navigation` (not `next/router`).
+- **Language:** TypeScript 5.8.2. **STRICT MODE**. No `any` types. Explicit interfaces for all Props, States, and Service responses.
+- **Styling:** Tailwind CSS 3.4.17. Use utility classes. No arbitrary values (e.g., `w-[350px]`) unless absolutely necessary.
+- **Backend:** Supabase. **NEVER** call Supabase directly inside a Component. ALWAYS use the Service Layer pattern.
+- **Icons:** Lucide React.
+- **Components:** Functional components only. Use `const` definitions.
+
+## 3. Architecture & File Structure
+- **Feature-Based:** Locate logic in `src/features/<feature-name>/`.
+  - Components: `src/features/<feature>/components/`
+  - Services: `src/features/<feature>/services/` (Business logic & DB calls)
+  - Hooks: `src/features/<feature>/hooks/`
+  - Context: `src/features/<feature>/context/`
+- **Shared UI:** Reusable generic UI components go in `src/components/ui/`.
+- **Imports:** Use absolute imports (`@/components/...`, `@/features/...`) instead of relative paths (`../../`).
+
+## 4. Coding Patterns (Mandatory)
+### A. Service Layer Pattern
+- All database interactions MUST go through a service file.
+- Service functions must return a tuple: `{ data: T | null, error: Error | null }`.
+- **Do not** throw errors in services; return them.
+- Example:
+  ```typescript
+  export const getTeam = async (id: string): Promise<{ data: Team | null; error: Error | null }> => {
+    try {
+      const { data, error } = await supabase.from('teams').select('*').eq('id', id).single();
+      if (error) return { data: null, error };
+      return { data, error: null };
+    } catch (err) {
+      return { data: null, error: err as Error };
+    }
+  };
